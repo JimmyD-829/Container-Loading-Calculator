@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Box, Line, Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { Button, Slider, Tooltip } from 'antd';
+import { Button, Slider, Tooltip, Alert } from 'antd';
 import {
   EyeOutlined,
   EyeInvisibleOutlined,
@@ -14,7 +14,11 @@ import {
   ArrowRightOutlined,
   ZoomInOutlined,
   RestOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
+import { calculateCenterOfGravity, validateCenterOfGravity, DEFAULT_COG_CONFIG, ConstraintViolation } from '../algorithms/constraintSolver';
+import { ContainerSpec, PlacedCargo } from '../types';
 
 interface CargoBox {
   id: string;
@@ -87,7 +91,7 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
   );
 };
 
-const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () => void; showLabels: boolean }> = ({ box, isSelected, onClick, showLabels }) => {
+const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () => void; showLabels: boolean; isWarning?: boolean; isError?: boolean }> = ({ box, isSelected, onClick, showLabels, isWarning, isError }) => {
   const meshRef = React.useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   
@@ -96,6 +100,9 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
       meshRef.current.rotation.y += 0.02;
     }
   });
+
+  const emissiveColor = isError ? '#e53e3e' : isWarning ? '#ed8936' : box.color;
+  const emissiveIntensity = (isSelected || hovered || isError || isWarning) ? 0.4 : 0;
 
   return (
     <group position={box.position}>
@@ -114,16 +121,16 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
         }}
       >
         <meshStandardMaterial 
-          color={box.color} 
+          color={isError ? '#fc8181' : isWarning ? '#fbd38d' : box.color} 
           transparent 
-          opacity={isSelected ? 0.9 : (hovered ? 0.9 : 0.8)}
-          emissive={isSelected || hovered ? box.color : '#000000'}
-          emissiveIntensity={isSelected || hovered ? 0.4 : 0}
+          opacity={isSelected || hovered ? 0.9 : 0.8}
+          emissive={emissiveColor}
+          emissiveIntensity={emissiveIntensity}
         />
       </Box>
       
       <Box args={box.size}>
-        <meshBasicMaterial wireframe color={isSelected ? '#ffffff' : '#2d3748'} transparent opacity={isSelected ? 1 : 0.5} />
+        <meshBasicMaterial wireframe color={isSelected ? '#ffffff' : (isError ? '#e53e3e' : '#2d3748')} transparent opacity={isSelected ? 1 : (isError ? 0.8 : 0.5)} />
       </Box>
       
       {showLabels && (isSelected || hovered) && (
@@ -137,7 +144,7 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            border: '1px solid rgba(255,255,255,0.2)',
+            border: `1px solid ${isError ? '#e53e3e' : (isWarning ? '#ed8936' : 'rgba(255,255,255,0.2')}`,
           }}>
             {box.name}
           </div>
@@ -147,20 +154,45 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
   );
 };
 
-const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ position }) => {
+const CenterOfGravity: React.FC<{ position: [number, number, number]; isValid: boolean; containerDimensions: ContainerDimensions }> = ({ position, isValid, containerDimensions }) => {
+  const { length, width, height } = containerDimensions;
+  
+  const safeZoneSize = useMemo(() => {
+    const config = DEFAULT_COG_CONFIG;
+    return {
+      x: length * config.maxOffsetX * 2,
+      y: width * config.maxOffsetY * 2,
+      z: height * config.maxOffsetZ * 2
+    };
+  }, [length, width, height]);
+
   return (
     <group position={position}>
-      <Sphere args={[0.12]}>
-        <meshStandardMaterial color="#e53e3e" emissive="#c53030" emissiveIntensity={0.6} />
+      <mesh>
+        <boxGeometry args={[safeZoneSize.x, safeZoneSize.y, safeZoneSize.z]} />
+        <meshStandardMaterial 
+          color={isValid ? '#48bb78' : '#e53e3e'} 
+          transparent 
+          opacity={0.2} 
+          wireframe 
+        />
+      </mesh>
+      
+      <Sphere args={[0.15]}>
+        <meshStandardMaterial 
+          color={isValid ? '#48bb78' : '#e53e3e'} 
+          emissive={isValid ? '#38a169' : '#c53030'} 
+          emissiveIntensity={0.6} 
+        />
       </Sphere>
       
-      <Line points={[new THREE.Vector3(-0.6, 0, 0), new THREE.Vector3(0.6, 0, 0)]} color="#e53e3e" lineWidth={3} />
-      <Line points={[new THREE.Vector3(0, -0.6, 0), new THREE.Vector3(0, 0.6, 0)]} color="#e53e3e" lineWidth={3} />
-      <Line points={[new THREE.Vector3(0, 0, -0.6), new THREE.Vector3(0, 0, 0.6)]} color="#e53e3e" lineWidth={3} />
+      <Line points={[new THREE.Vector3(-0.8, 0, 0), new THREE.Vector3(0.8, 0, 0)]} color={isValid ? '#48bb78' : '#e53e3e'} lineWidth={3} />
+      <Line points={[new THREE.Vector3(0, -0.8, 0), new THREE.Vector3(0, 0.8, 0)]} color={isValid ? '#48bb78' : '#e53e3e'} lineWidth={3} />
+      <Line points={[new THREE.Vector3(0, 0, -0.8), new THREE.Vector3(0, 0, 0.8)]} color={isValid ? '#48bb78' : '#e53e3e'} lineWidth={3} />
       
-      <Html distanceFactor={5} position={[0, 0.4, 0]} center>
+      <Html distanceFactor={5} position={[0, 0.5, 0]} center>
         <div style={{
-          background: 'rgba(229, 62, 62, 0.95)',
+          background: isValid ? 'rgba(72, 187, 120, 0.95)' : 'rgba(229, 62, 62, 0.95)',
           color: 'white',
           padding: '4px 8px',
           borderRadius: '4px',
@@ -170,7 +202,7 @@ const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ pos
           pointerEvents: 'none',
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
-          重心
+          {isValid ? '✓ 重心正常' : '✗ 重心超限'}
         </div>
       </Html>
     </group>
@@ -185,6 +217,7 @@ interface Container3DSceneProps {
   containerDimensions: ContainerDimensions;
   cargoBoxes: CargoBox[];
   centerOfGravity: [number, number, number];
+  isCogValid: boolean;
   selectedBoxId: string | null;
   onBoxSelect: (id: string | null) => void;
   showGrid: boolean;
@@ -192,12 +225,15 @@ interface Container3DSceneProps {
   showLabels: boolean;
   containerOpacity: number;
   autoRotate: boolean;
+  errorBoxIds: string[];
+  warningBoxIds: string[];
 }
 
 const Container3DScene: React.FC<Container3DSceneProps> = ({
   containerDimensions,
   cargoBoxes,
   centerOfGravity,
+  isCogValid,
   selectedBoxId,
   onBoxSelect,
   showGrid,
@@ -205,6 +241,8 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
   showLabels,
   containerOpacity,
   autoRotate,
+  errorBoxIds,
+  warningBoxIds,
 }) => {
   return (
     <>
@@ -222,10 +260,18 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
           isSelected={selectedBoxId === box.id}
           onClick={() => onBoxSelect(selectedBoxId === box.id ? null : box.id)}
           showLabels={showLabels}
+          isError={errorBoxIds.includes(box.id)}
+          isWarning={warningBoxIds.includes(box.id)}
         />
       ))}
       
-      {showCenterOfGravity && <CenterOfGravity position={centerOfGravity} />}
+      {showCenterOfGravity && cargoBoxes.length > 0 && (
+        <CenterOfGravity 
+          position={centerOfGravity} 
+          isValid={isCogValid}
+          containerDimensions={containerDimensions}
+        />
+      )}
       {showGrid && <GridFloor />}
       
       <OrbitControls
@@ -248,14 +294,16 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
 interface Container3DProps {
   containerDimensions?: ContainerDimensions;
   cargoBoxes?: CargoBox[];
-  centerOfGravity?: [number, number, number];
+  placedCargos?: PlacedCargo[];
+  containerSpec?: ContainerSpec;
   className?: string;
 }
 
 const Container3D: React.FC<Container3DProps> = ({
   containerDimensions = { length: 6, width: 2.5, height: 2.6 },
   cargoBoxes = [],
-  centerOfGravity = [0, 0, 0],
+  placedCargos = [],
+  containerSpec,
   className = '',
 }) => {
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
@@ -265,6 +313,8 @@ const Container3D: React.FC<Container3DProps> = ({
   const [containerOpacity, setContainerOpacity] = useState(0.8);
   const [autoRotate, setAutoRotate] = useState(false);
   const [containerHeight, setContainerHeight] = useState(700);
+  const [constraintViolations, setConstraintViolations] = useState<ConstraintViolation[]>([]);
+  const [constraintWarnings, setConstraintWarnings] = useState<ConstraintViolation[]>([]);
   
   useEffect(() => {
     const updateHeight = () => {
@@ -285,6 +335,34 @@ const Container3D: React.FC<Container3DProps> = ({
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
   
+  useEffect(() => {
+    if (placedCargos.length > 0 && containerSpec) {
+      const result = validateCenterOfGravity(placedCargos, containerSpec);
+      setConstraintViolations(result.violations);
+      setConstraintWarnings(result.warnings as unknown as ConstraintViolation[]);
+    }
+  }, [placedCargos, containerSpec]);
+  
+  const centerOfGravity = useMemo(() => {
+    if (placedCargos.length === 0 || !containerSpec) {
+      const centerX = containerDimensions.length / 2;
+      const centerY = containerDimensions.width / 2;
+      const centerZ = containerDimensions.height / 2;
+      return [centerX, centerZ, centerY] as [number, number, number];
+    }
+    
+    const cog = calculateCenterOfGravity(placedCargos, containerSpec);
+    const centerX = containerDimensions.length / 2 + cog.x / 1000;
+    const centerY = containerDimensions.height / 2 + cog.z / 1000;
+    const centerZ = containerDimensions.width / 2 + cog.y / 1000;
+    
+    return [centerX, centerY, centerZ] as [number, number, number];
+  }, [placedCargos, containerSpec, containerDimensions]);
+  
+  const isCogValid = constraintViolations.filter(v => v.type === 'centerOfGravity').length === 0;
+  const errorBoxIds = constraintViolations.map(v => v.cargoId).filter(Boolean) as string[];
+  const warningBoxIds = constraintWarnings.map(v => v.cargoId).filter(Boolean) as string[];
+  
   const selectedBox = cargoBoxes.find(box => box.id === selectedBoxId);
   
   const handleResetView = () => {
@@ -292,7 +370,7 @@ const Container3D: React.FC<Container3DProps> = ({
   };
 
   return (
-    <div className={`w-full ${className} container3d-container`} style={{ minHeight: `${containerHeight + 100}px` }}>
+    <div className={`w-full ${className} container3d-container`} style={{ minHeight: `${containerHeight + 150}px` }}>
       <div 
         className="container3d-canvas"
         style={{ 
@@ -311,6 +389,7 @@ const Container3D: React.FC<Container3DProps> = ({
             containerDimensions={containerDimensions}
             cargoBoxes={cargoBoxes}
             centerOfGravity={centerOfGravity}
+            isCogValid={isCogValid}
             selectedBoxId={selectedBoxId}
             onBoxSelect={setSelectedBoxId}
             showGrid={showGrid}
@@ -318,9 +397,48 @@ const Container3D: React.FC<Container3DProps> = ({
             showLabels={showLabels}
             containerOpacity={containerOpacity}
             autoRotate={autoRotate}
+            errorBoxIds={errorBoxIds}
+            warningBoxIds={warningBoxIds}
           />
         </Canvas>
       </div>
+      
+      {(constraintViolations.length > 0 || constraintWarnings.length > 0) && (
+        <div style={{ marginTop: '12px' }}>
+          {constraintViolations.length > 0 && (
+            <Alert
+              message="约束违规"
+              description={
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  {constraintViolations.slice(0, 5).map((v, i) => (
+                    <li key={i} style={{ fontSize: '13px', marginBottom: '4px' }}>{v.message}</li>
+                  ))}
+                  {constraintViolations.length > 5 && (
+                    <li style={{ fontSize: '13px', color: '#a0aec0' }}>还有 {constraintViolations.length - 5} 条违规...</li>
+                  )}
+                </ul>
+              }
+              type="error"
+              showIcon
+              style={{ marginBottom: '8px' }}
+            />
+          )}
+          {constraintWarnings.length > 0 && (
+            <Alert
+              message="约束警告"
+              description={
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  {constraintWarnings.slice(0, 5).map((w, i) => (
+                    <li key={i} style={{ fontSize: '13px', marginBottom: '4px' }}>{w.message}</li>
+                  ))}
+                </ul>
+              }
+              type="warning"
+              showIcon
+            />
+          )}
+        </div>
+      )}
       
       <div className="container3d-controls" style={{ 
         display: 'flex', 
@@ -374,7 +492,7 @@ const Container3D: React.FC<Container3DProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>重心</span>
             <Button type={showCenterOfGravity ? 'primary' : 'default'} size="small" onClick={() => setShowCenterOfGravity(!showCenterOfGravity)}>
-              <TagOutlined />
+              {isCogValid ? <CheckCircleOutlined /> : <WarningOutlined />}
             </Button>
           </div>
           
