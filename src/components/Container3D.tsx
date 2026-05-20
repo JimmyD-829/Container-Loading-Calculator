@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Box, Line, Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -89,6 +89,7 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
 
 const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () => void; showLabels: boolean }> = ({ box, isSelected, onClick, showLabels }) => {
   const meshRef = React.useRef<THREE.Mesh>(null);
+  const [hovered, setHovered] = useState(false);
   
   useFrame(() => {
     if (meshRef.current && isSelected) {
@@ -104,18 +105,20 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
         onClick={onClick}
         onPointerOver={(e) => {
           e.stopPropagation();
+          setHovered(true);
           document.body.style.cursor = 'pointer';
         }}
         onPointerOut={() => {
+          setHovered(false);
           document.body.style.cursor = 'default';
         }}
       >
         <meshStandardMaterial 
           color={box.color} 
           transparent 
-          opacity={isSelected ? 0.9 : 0.8}
-          emissive={isSelected ? box.color : '#000000'}
-          emissiveIntensity={isSelected ? 0.4 : 0}
+          opacity={isSelected ? 0.9 : (hovered ? 0.9 : 0.8)}
+          emissive={isSelected || hovered ? box.color : '#000000'}
+          emissiveIntensity={isSelected || hovered ? 0.4 : 0}
         />
       </Box>
       
@@ -123,19 +126,18 @@ const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () =
         <meshBasicMaterial wireframe color={isSelected ? '#ffffff' : '#2d3748'} transparent opacity={isSelected ? 1 : 0.5} />
       </Box>
       
-      {showLabels && (
-        <Html distanceFactor={10} position={[0, box.size[1] / 2 + 0.1, 0]}>
+      {showLabels && (isSelected || hovered) && (
+        <Html distanceFactor={5} position={[0, box.size[1] / 2 + 0.15, 0]} center>
           <div style={{
-            background: 'rgba(0,0,0,0.8)',
+            background: 'rgba(0,0,0,0.9)',
             color: 'white',
             padding: '4px 8px',
             borderRadius: '4px',
             fontSize: '11px',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
-            opacity: isSelected ? 1 : 0.7,
-            transition: 'opacity 0.2s',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            border: '1px solid rgba(255,255,255,0.2)',
           }}>
             {box.name}
           </div>
@@ -156,7 +158,7 @@ const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ pos
       <Line points={[new THREE.Vector3(0, -0.6, 0), new THREE.Vector3(0, 0.6, 0)]} color="#e53e3e" lineWidth={3} />
       <Line points={[new THREE.Vector3(0, 0, -0.6), new THREE.Vector3(0, 0, 0.6)]} color="#e53e3e" lineWidth={3} />
       
-      <Html distanceFactor={10} position={[0, 0.35, 0]}>
+      <Html distanceFactor={5} position={[0, 0.4, 0]} center>
         <div style={{
           background: 'rgba(229, 62, 62, 0.95)',
           color: 'white',
@@ -168,7 +170,7 @@ const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ pos
           pointerEvents: 'none',
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
-          重心 CG
+          重心
         </div>
       </Html>
     </group>
@@ -227,12 +229,15 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
       {showGrid && <GridFloor />}
       
       <OrbitControls
-        minDistance={4}
-        maxDistance={25}
         enableZoom={true}
         enablePan={true}
         enableRotate={true}
-        target={[0, 0, 0]}
+        minDistance={3}
+        maxDistance={30}
+        minPolarAngle={0}
+        maxPolarAngle={Math.PI}
+        enableDamping={true}
+        dampingFactor={0.05}
         autoRotate={autoRotate}
         autoRotateSpeed={2}
       />
@@ -259,30 +264,48 @@ const Container3D: React.FC<Container3DProps> = ({
   const [showLabels, setShowLabels] = useState(true);
   const [containerOpacity, setContainerOpacity] = useState(0.8);
   const [autoRotate, setAutoRotate] = useState(false);
+  const [containerHeight, setContainerHeight] = useState(700);
+  
+  useEffect(() => {
+    const updateHeight = () => {
+      const width = window.innerWidth;
+      if (width < 480) {
+        setContainerHeight(350);
+      } else if (width < 768) {
+        setContainerHeight(400);
+      } else if (width < 1024) {
+        setContainerHeight(500);
+      } else {
+        setContainerHeight(700);
+      }
+    };
+    
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
   
   const selectedBox = cargoBoxes.find(box => box.id === selectedBoxId);
   
   const handleResetView = () => {
     setSelectedBoxId(null);
   };
-  
-  const handlePresetView = (view: string) => {
-    const cameraPositions: Record<string, [number, number, number]> = {
-      front: [0, 4, 8],
-      back: [0, 4, -8],
-      left: [-8, 4, 0],
-      right: [8, 4, 0],
-      top: [0, 12, 0],
-      iso: [8, 8, 8],
-    };
-  };
 
   return (
-    <div className={`w-full ${className}`} style={{ minHeight: '700px' }}>
-      <div style={{ height: '700px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+    <div className={`w-full ${className} container3d-container`} style={{ minHeight: `${containerHeight + 100}px` }}>
+      <div 
+        className="container3d-canvas"
+        style={{ 
+          height: `${containerHeight}px`, 
+          borderRadius: '12px', 
+          overflow: 'hidden', 
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)' 
+        }}
+      >
         <Canvas
           camera={{ position: [12, 10, 12], fov: 40 }}
           style={{ background: 'linear-gradient(180deg, #1a202c 0%, #2d3748 50%, #4a5568 100%)', width: '100%', height: '100%' }}
+          gl={{ antialias: true, alpha: true }}
         >
           <Container3DScene
             containerDimensions={containerDimensions}
@@ -299,7 +322,7 @@ const Container3D: React.FC<Container3DProps> = ({
         </Canvas>
       </div>
       
-      <div style={{ 
+      <div className="container3d-controls" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
@@ -310,24 +333,24 @@ const Container3D: React.FC<Container3DProps> = ({
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="container3d-controls-left" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <Tooltip title="正面视图">
-            <Button icon={<ArrowUpOutlined />} onClick={() => handlePresetView('front')} size="small" />
+            <Button icon={<ArrowUpOutlined />} size="small" />
           </Tooltip>
           <Tooltip title="背面视图">
-            <Button icon={<ArrowDownOutlined />} onClick={() => handlePresetView('back')} size="small" />
+            <Button icon={<ArrowDownOutlined />} size="small" />
           </Tooltip>
           <Tooltip title="左侧视图">
-            <Button icon={<ArrowLeftOutlined />} onClick={() => handlePresetView('left')} size="small" />
+            <Button icon={<ArrowLeftOutlined />} size="small" />
           </Tooltip>
           <Tooltip title="右侧视图">
-            <Button icon={<ArrowRightOutlined />} onClick={() => handlePresetView('right')} size="small" />
+            <Button icon={<ArrowRightOutlined />} size="small" />
           </Tooltip>
           <Tooltip title="顶部视图">
-            <Button icon={<TagOutlined />} onClick={() => handlePresetView('top')} size="small" />
+            <Button icon={<TagOutlined />} size="small" />
           </Tooltip>
           <Tooltip title="等轴测视图">
-            <Button icon={<ZoomInOutlined />} onClick={() => handlePresetView('iso')} size="small" />
+            <Button icon={<ZoomInOutlined />} size="small" />
           </Tooltip>
           
           <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
@@ -340,7 +363,7 @@ const Container3D: React.FC<Container3DProps> = ({
           </Tooltip>
         </div>
         
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="container3d-controls-right" style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>网格</span>
             <Button type={showGrid ? 'primary' : 'default'} size="small" onClick={() => setShowGrid(!showGrid)}>
@@ -363,14 +386,14 @@ const Container3D: React.FC<Container3DProps> = ({
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: '#718096' }}>容器透明度</span>
+            <span style={{ fontSize: '12px', color: '#718096' }}>透明度</span>
             <Slider min={0} max={1} step={0.1} value={containerOpacity} onChange={setContainerOpacity} style={{ width: '100px' }} />
           </div>
         </div>
       </div>
       
       {selectedBox && (
-        <div style={{
+        <div className="container3d-detail" style={{
           marginTop: '16px',
           padding: '16px',
           background: '#ffffff',
@@ -380,7 +403,7 @@ const Container3D: React.FC<Container3DProps> = ({
           <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>
             选中货物详情
           </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
+          <div className="container3d-detail-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
             <div>
               <span style={{ color: '#718096', fontSize: '12px' }}>名称</span>
               <p style={{ margin: '4px 0 0 0', fontWeight: '500' }}>{selectedBox.name}</p>
@@ -400,7 +423,7 @@ const Container3D: React.FC<Container3DProps> = ({
             <div>
               <span style={{ color: '#718096', fontSize: '12px' }}>颜色</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: selectedBox.color, border: '1px solid #e2e8f0' }} />
+                <div className="cargo-detail-box" style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: selectedBox.color, border: '1px solid #e2e8f0' }} />
                 <span>{selectedBox.color}</span>
               </div>
             </div>
