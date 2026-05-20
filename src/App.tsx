@@ -447,8 +447,6 @@ const App: React.FC = () => {
           <div>
             <ResultViewer
               result={loadingResult}
-              onExport={() => message.info('导出功能开发中')}
-              onShare={() => message.info('分享功能开发中')}
             />
             <div style={{ marginTop: '24px' }}>
               <div className="actions">
@@ -471,6 +469,16 @@ const App: React.FC = () => {
                     <Container3D
                       {...convertTo3DData(loadingResult, selected3DContainerIndex)}
                       multiContainerData={convertToMultiContainer3DData(loadingResult)}
+                      statistics={{
+                        containerName: loadingResult.containers[selected3DContainerIndex]?.container.name || '-',
+                        totalVolume: loadingResult.containers[selected3DContainerIndex]?.cargoList.reduce((sum, c) => sum + (c.length * c.width * c.height) / 1000000, 0) || 0,
+                        volumeUtilization: loadingResult.containers[selected3DContainerIndex]?.volumeUtilization || 0,
+                        totalWeight: loadingResult.containers[selected3DContainerIndex]?.totalWeight || 0,
+                        totalWeightWithContainer: (loadingResult.containers[selected3DContainerIndex]?.totalWeight || 0) + (loadingResult.containers[selected3DContainerIndex]?.container.tareWeight || 0),
+                        lengthTolerance: (loadingResult.containers[selected3DContainerIndex]?.container.length || 0) * 10 - loadingResult.containers[selected3DContainerIndex]?.cargoList.reduce((max, c) => Math.max(max, c.position.x + c.length), 0) * 10,
+                        widthTolerance: (loadingResult.containers[selected3DContainerIndex]?.container.width || 0) * 10 - loadingResult.containers[selected3DContainerIndex]?.cargoList.reduce((max, c) => Math.max(max, c.position.z + c.width), 0) * 10,
+                        heightTolerance: (loadingResult.containers[selected3DContainerIndex]?.container.height || 0) * 10 - loadingResult.containers[selected3DContainerIndex]?.cargoList.reduce((max, c) => Math.max(max, c.position.y + c.height), 0) * 10,
+                      }}
                     />
                   </div>
                 </div>

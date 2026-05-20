@@ -315,6 +315,16 @@ interface Container3DProps {
   containerSpec?: ContainerSpec;
   className?: string;
   multiContainerData?: MultiContainerData[];
+  statistics?: {
+    containerName?: string;
+    totalVolume?: number;
+    volumeUtilization?: number;
+    totalWeight?: number;
+    totalWeightWithContainer?: number;
+    lengthTolerance?: number;
+    widthTolerance?: number;
+    heightTolerance?: number;
+  };
 }
 
 const Container3D: React.FC<Container3DProps> = ({
@@ -324,6 +334,7 @@ const Container3D: React.FC<Container3DProps> = ({
   containerSpec,
   className = '',
   multiContainerData = [],
+  statistics,
 }) => {
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -608,6 +619,54 @@ const Container3D: React.FC<Container3DProps> = ({
           </div>
         </div>
       </div>
+      
+      {statistics && (
+        <div className="container3d-stats" style={{
+          marginTop: '16px',
+          padding: '16px',
+          background: '#ffffff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>集装箱</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#2d3748' }}>{statistics.containerName || '-'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>货物体积 (m³)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#2d3748' }}>{statistics.totalVolume?.toFixed(2) || '-'} m³</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>体积利用率</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#38a169' }}>{statistics.volumeUtilization?.toFixed(2) || '-'}%</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>货物重量 (kg)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#2d3748' }}>{statistics.totalWeight?.toFixed(2) || '-'} kg</div>
+            </div>
+          </div>
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>货物+集装箱 (kg)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#2d3748' }}>{statistics.totalWeightWithContainer?.toFixed(2) || '-'} kg</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>长度公差 (mm)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#ed8936' }}>{statistics.lengthTolerance?.toFixed(2) || '-'} mm</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>宽度公差 (mm)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#ed8936' }}>{statistics.widthTolerance?.toFixed(2) || '-'} mm</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>高度公差 (mm)</div>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: '#ed8936' }}>{statistics.heightTolerance?.toFixed(2) || '-'} mm</div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {selectedBox && (
         <div className="container3d-detail" style={{

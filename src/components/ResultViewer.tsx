@@ -130,18 +130,71 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
     message.success('导出成功');
   };
 
+  const getFeasibilityAnalysis = (data: LoadingResult) => {
+    const isFeasible = data.unplacedCargo.length === 0;
+    const utilization = data.averageUtilization;
+    const warnings: string[] = [];
+    const suggestions: string[] = [];
+    
+    if (data.unplacedCargo.length > 0) {
+      warnings.push(`${data.unplacedCargo.length} 种货物未能装载，建议增加集装箱数量或调整货物尺寸`);
+    }
+    if (utilization < 50) {
+      warnings.push('空间利用率较低，建议减少集装箱数量或增加货物');
+      suggestions.push('考虑使用更小尺寸的集装箱');
+      suggestions.push('检查是否有过多的空隙浪费');
+    } else if (utilization > 95) {
+      warnings.push('空间利用率过高，装载可能过于紧密');
+      suggestions.push('建议预留适当空隙便于装卸');
+    }
+    
+    data.containers.forEach((container, idx) => {
+      if (container.weightUtilization > 90) {
+        warnings.push(`集装箱 #${idx + 1} 重量接近满载，需注意载重限制`);
+      }
+      if (container.weightUtilization < 30) {
+        suggestions.push(`集装箱 #${idx + 1} 重量利用率较低，可考虑增加重货`);
+      }
+    });
+    
+    return {
+      isFeasible,
+      status: isFeasible ? '可行' : '部分可行',
+      warnings,
+      suggestions,
+    };
+  };
+
   const exportToExcel = (data: LoadingResult, timestamp: string) => {
+    const analysis = getFeasibilityAnalysis(data);
     const worksheetData: any[][] = [];
     
     worksheetData.push(['装柜清单报告', '', '', '', '', '', '', '']);
     worksheetData.push(['生成时间:', new Date().toLocaleString(), '', '', '', '', '', '']);
     worksheetData.push(['算法:', data.algorithm, '', '', '', '', '', '']);
     worksheetData.push(['计算耗时:', `${data.calculationTime.toFixed(2)}秒`, '', '', '', '', '', '']);
+    worksheetData.push(['可行性:', analysis.status, '', '', '', '', '', '']);
+    worksheetData.push(['', '', '', '', '', '', '', '']);
+    
+    worksheetData.push(['=== 可行性分析 ===', '', '', '', '', '', '', '']);
+    if (analysis.warnings.length > 0) {
+      worksheetData.push(['警告:', '', '', '', '', '', '', '']);
+      analysis.warnings.forEach(warning => {
+        worksheetData.push(['', warning, '', '', '', '', '', '']);
+      });
+    }
+    if (analysis.suggestions.length > 0) {
+      worksheetData.push(['建议:', '', '', '', '', '', '', '']);
+      analysis.suggestions.forEach(suggestion => {
+        worksheetData.push(['', suggestion, '', '', '', '', '', '']);
+      });
+    }
     worksheetData.push(['', '', '', '', '', '', '', '']);
     
     worksheetData.push(['=== 统计信息 ===', '', '', '', '', '', '', '']);
     worksheetData.push(['使用集装箱数', data.totalContainers, '个', '', '', '', '', '']);
     worksheetData.push(['装载货物总数', data.totalCargoCount, '件', '', '', '', '', '']);
+    worksheetData.push(['未装载货物', data.unplacedCargo.length, '种', '', '', '', '', '']);
     worksheetData.push(['平均利用率', `${data.averageUtilization.toFixed(1)}`, '%', '', '', '', '', '']);
     worksheetData.push(['', '', '', '', '', '', '', '']);
     
@@ -219,15 +272,18 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
   };
 
   const exportToJson = (data: LoadingResult, timestamp: string) => {
+    const analysis = getFeasibilityAnalysis(data);
     const exportData = {
       metadata: {
         generatedAt: new Date().toISOString(),
         algorithm: data.algorithm,
         calculationTime: data.calculationTime,
       },
+      feasibility: analysis,
       statistics: {
         totalContainers: data.totalContainers,
         totalCargoCount: data.totalCargoCount,
+        unplacedCargoCount: data.unplacedCargo.length,
         averageUtilization: data.averageUtilization,
       },
       containers: data.containers.map(container => ({
@@ -245,18 +301,38 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
   };
 
   const exportToTxt = (data: LoadingResult, timestamp: string) => {
+    const analysis = getFeasibilityAnalysis(data);
     let txt = '='.repeat(60) + '\n';
     txt += '          集装箱装柜清单报告\n';
     txt += '='.repeat(60) + '\n\n';
     
     txt += `生成时间: ${new Date().toLocaleString()}\n`;
     txt += `算法类型: ${data.algorithm}\n`;
-    txt += `计算耗时: ${data.calculationTime.toFixed(2)} 秒\n\n`;
+    txt += `计算耗时: ${data.calculationTime.toFixed(2)} 秒\n`;
+    txt += `可行性: ${analysis.status}\n\n`;
+    
+    txt += '【可行性分析】\n';
+    txt += '-'.repeat(40) + '\n';
+    if (analysis.warnings.length > 0) {
+      txt += '  ⚠️ 警告:\n';
+      analysis.warnings.forEach(warning => {
+        txt += `    - ${warning}\n`;
+      });
+      txt += '\n';
+    }
+    if (analysis.suggestions.length > 0) {
+      txt += '  💡 建议:\n';
+      analysis.suggestions.forEach(suggestion => {
+        txt += `    - ${suggestion}\n`;
+      });
+      txt += '\n';
+    }
     
     txt += '【统计信息】\n';
     txt += '-'.repeat(40) + '\n';
     txt += `  使用集装箱数: ${data.totalContainers} 个\n`;
     txt += `  装载货物总数: ${data.totalCargoCount} 件\n`;
+    txt += `  未装载货物: ${data.unplacedCargo.length} 种\n`;
     txt += `  平均体积利用率: ${data.averageUtilization.toFixed(1)}%\n\n`;
     
     data.containers.forEach((container, containerIndex) => {

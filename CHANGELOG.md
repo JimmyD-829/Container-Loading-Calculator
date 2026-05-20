@@ -12,11 +12,26 @@
   - 支持创建自定义集装箱规格
   - 自定义尺寸、载重限制
   - 支持多种集装箱类型（干货柜、冷藏柜、开顶柜、框架柜、罐式集装箱）
+- **导出报告增强**：
+  - 修复导出按钮点击无响应问题
+  - 添加可行性分析（警告和建议）
+  - 支持Excel/CSV/JSON/TXT四种格式
+- **3D视图统计面板**：
+  - 在3D可视化下方添加统计数据展示
+  - 显示集装箱信息、货物体积、重量、利用率、公差等数据
+- **UI优化**：
+  - 修复顶部标题遮挡问题
+  - 使用原生header标签避免样式冲突
+  - 优化标题和副标题间距
 
 ### 修改文件
 - `src/utils/templateManager.ts` - 货物模板管理器
 - `src/data/containerSpecs.ts` - 集装箱规格数据
 - `src/components/TemplateManager.tsx` - 模板管理界面
+- `src/components/ResultViewer.tsx` - 导出功能和可行性分析
+- `src/components/Container3D.tsx` - 3D视图统计面板
+- `src/App.tsx` - 布局优化
+- `src/index.css` - 样式修复
 
 ---
 
