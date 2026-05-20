@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import {
   Table,
   Card,
@@ -197,9 +198,45 @@ const CargoManager: React.FC<CargoManagerProps> = ({
   // 处理Excel导入
   const handleExcelImport: UploadProps['onChange'] = (info) => {
     if (info.file.status === 'done') {
-      message.success(`${info.file.name} 导入成功`);
-      // 这里应该解析Excel文件内容
-      // 实际项目中需要使用 xlsx 库解析
+      const file = info.file.originFileObj;
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: ['name', 'length', 'width', 'height', 'weight', 'quantity', 'stackable', 'fragile'] });
+            
+            jsonData.shift();
+            
+            const importedCargos: CargoItem[] = jsonData
+              .filter((row: any) => row.name && row.length && row.width && row.height && row.weight && row.quantity)
+              .map((row: any, index: number) => ({
+                id: `imported-${Date.now()}-${index}`,
+                name: String(row.name).trim(),
+                length: Number(row.length),
+                width: Number(row.width),
+                height: Number(row.height),
+                weight: Number(row.weight),
+                quantity: Number(row.quantity),
+                stackable: String(row.stackable).trim() === '是',
+                fragile: String(row.fragile).trim() === '是',
+                color: CARGO_COLORS[(cargoList.length + index) % CARGO_COLORS.length],
+              }));
+            
+            if (importedCargos.length > 0) {
+              onCargoListChange([...cargoList, ...importedCargos]);
+              message.success(`成功导入 ${importedCargos.length} 条货物数据`);
+            } else {
+              message.warning('未找到有效的货物数据');
+            }
+          } catch (error) {
+            message.error('解析文件失败，请确保文件格式正确');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
     } else if (info.file.status === 'error') {
       message.error(`${info.file.name} 导入失败`);
     }
@@ -208,12 +245,32 @@ const CargoManager: React.FC<CargoManagerProps> = ({
 
   // 导出Excel模板
   const handleDownloadTemplate = () => {
-    const template = [
+    const templateData = [
       ['货物名称', '长度(cm)', '宽度(cm)', '高度(cm)', '重量(kg)', '数量', '可堆叠', '易碎'],
-      ['示例货物', '100', '80', '60', '50', '10', '是', '否'],
+      ['电子产品箱', '50', '40', '30', '20', '5', '是', '否'],
+      ['服装纸箱', '60', '50', '40', '15', '10', '是', '否'],
+      ['食品包装盒', '40', '30', '25', '8', '20', '是', '否'],
+      ['易碎品箱', '35', '35', '35', '5', '3', '否', '是'],
+      ['大型设备箱', '120', '80', '60', '100', '2', '是', '否'],
     ];
-    // 实际项目中使用 xlsx 库导出
-    message.success('模板下载功能待实现');
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '货物模板');
+    
+    worksheet['!cols'] = [
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 10 },
+    ];
+    
+    XLSX.writeFile(workbook, '货物导入模板.xlsx');
+    message.success('模板下载成功，请填写数据后导入');
   };
 
   // 表格列定义

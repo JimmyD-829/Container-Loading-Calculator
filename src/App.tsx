@@ -12,13 +12,13 @@ import CargoManager, { CargoItem } from './components/CargoManager';
 import ContainerSelector, { ContainerType as SelectorContainerType, DEFAULT_CONTAINERS } from './components/ContainerSelector';
 import CalculationConfig, { CalculationConfig as ConfigType } from './components/CalculationConfig';
 import ResultViewer, { LoadingResult, LoadedCargo } from './components/ResultViewer';
-import Container3D, { CargoBox, ContainerDimensions } from './components/Container3D';
+import Container3D, { CargoBox, ContainerDimensions, MultiContainerData } from './components/Container3D';
 import { ffdPacking } from './algorithms/ffd';
 import { Cargo, ContainerSpec, PackingResult, CargoType } from './types';
 import { CONTAINER_40HQ, STANDARD_CONTAINERS, createCustomContainerSpec } from './data/containers';
 import './App.css';
 
-// 将 LoadingResult 转换为 3D 可视化数据
+// 将 LoadingResult 转换为 3D 可视化数据（单个集装箱）
 const convertTo3DData = (result: LoadingResult, selectedContainerIndex: number = 0): {
   containerDimensions: ContainerDimensions;
   cargoBoxes: CargoBox[];
@@ -33,6 +33,15 @@ const convertTo3DData = (result: LoadingResult, selectedContainerIndex: number =
     };
   }
   
+  return convertContainerTo3DData(container, selectedContainerIndex);
+};
+
+// 将单个集装箱转换为3D数据
+const convertContainerTo3DData = (container: LoadingResult['containers'][0], containerIndex: number): {
+  containerDimensions: ContainerDimensions;
+  cargoBoxes: CargoBox[];
+  centerOfGravity: [number, number, number];
+} => {
   // 将 cm 转换为 m，因为 3D 组件使用米作为单位
   const containerDimensions: ContainerDimensions = {
     length: container.container.length / 100, // cm 转 m
@@ -64,6 +73,7 @@ const convertTo3DData = (result: LoadingResult, selectedContainerIndex: number =
       size: [cargoSizeM.length, cargoSizeM.width, cargoSizeM.height],
       position: [positionX, positionY, positionZ],
       color: cargo.color || '#1890ff',
+      containerIndex,
     };
   });
   
@@ -104,7 +114,23 @@ const convertTo3DData = (result: LoadingResult, selectedContainerIndex: number =
   return { containerDimensions, cargoBoxes, centerOfGravity };
 };
 
-const { Header, Content, Footer } = Layout;
+// 将 LoadingResult 转换为多集装箱3D数据
+const convertToMultiContainer3DData = (result: LoadingResult): MultiContainerData[] => {
+  return result.containers.map((container, index) => {
+    const { containerDimensions, cargoBoxes, centerOfGravity } = convertContainerTo3DData(container, index);
+    return {
+      containerDimensions,
+      cargoBoxes,
+      placedCargos: [],
+      centerOfGravity,
+      isCogValid: true,
+      errorBoxIds: [],
+      warningBoxIds: [],
+    };
+  });
+};
+
+const { Content, Footer } = Layout;
 
 // 转换组件之间的数据格式
 const convertToAlgorithmCargo = (cargoItem: CargoItem): Cargo => {
@@ -442,30 +468,9 @@ const App: React.FC = () => {
                 <div style={{ marginTop: '24px' }}>
                   <div className="step-content">
                     <h2>3D 装载可视化</h2>
-                    {loadingResult.containers.length > 1 && (
-                      <div style={{ marginBottom: '16px' }}>
-                        <span style={{ marginRight: '8px' }}>选择集装箱:</span>
-                        {loadingResult.containers.map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setSelected3DContainerIndex(index)}
-                            style={{
-                              margin: '0 4px',
-                              padding: '4px 12px',
-                              backgroundColor: selected3DContainerIndex === index ? '#3182ce' : '#e2e8f0',
-                              color: selected3DContainerIndex === index ? 'white' : 'black',
-                              border: 'none',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            集装箱 {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                     <Container3D
                       {...convertTo3DData(loadingResult, selected3DContainerIndex)}
+                      multiContainerData={convertToMultiContainer3DData(loadingResult)}
                     />
                   </div>
                 </div>
@@ -489,10 +494,10 @@ const App: React.FC = () => {
       }}
     >
       <Layout className="app">
-        <Header className="app-header">
+        <header className="app-header">
           <h1>🚢 集装箱装载优化工具</h1>
           <p>智能 3D 装载规划与可视化系统</p>
-        </Header>
+        </header>
         <Content className="app-main">
           <Steps
             current={currentStep}

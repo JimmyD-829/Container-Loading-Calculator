@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Box, Line, Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { Button, Slider, Tooltip, Alert } from 'antd';
+import { Button, Slider, Tooltip, Alert, Radio } from 'antd';
 import {
   EyeOutlined,
   EyeInvisibleOutlined,
@@ -26,6 +26,7 @@ interface CargoBox {
   size: [number, number, number];
   color: string;
   name: string;
+  containerIndex: number;
 }
 
 interface ContainerDimensions {
@@ -37,10 +38,14 @@ interface ContainerDimensions {
 interface ContainerProps {
   dimensions: ContainerDimensions;
   opacity?: number;
+  containerIndex?: number;
 }
 
-const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 }) => {
+const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8, containerIndex = 0 }) => {
   const { length, width, height } = dimensions;
+  
+  const colors = ['#4299e1', '#48bb78', '#ed8936', '#9f7aea', '#f56565', '#38b2ac'];
+  const frameColor = colors[containerIndex % colors.length];
   
   const points = useMemo(() => {
     const l = length / 2;
@@ -72,7 +77,7 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
       </mesh>
       
       {points.map((linePoints, index) => (
-        <Line key={index} points={linePoints} color="#4a5568" lineWidth={2} />
+        <Line key={index} points={linePoints} color={frameColor} lineWidth={2} />
       ))}
       
       <mesh position={[length / 2, 0, 0]}>
@@ -87,6 +92,23 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
         <planeGeometry args={[length, height]} />
         <meshStandardMaterial color="#2d3748" transparent opacity={opacity * 0.2} side={THREE.DoubleSide} />
       </mesh>
+      
+      <Html distanceFactor={5} position={[0, height / 2 + 0.3, 0]} center>
+        <div style={{
+          background: 'rgba(0,0,0,0.9)',
+          color: 'white',
+          padding: '4px 12px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          border: `2px solid ${frameColor}`,
+        }}>
+          集装箱 #{containerIndex + 1}
+        </div>
+      </Html>
     </group>
   );
 };
@@ -210,7 +232,7 @@ const CenterOfGravity: React.FC<{ position: [number, number, number]; isValid: b
 };
 
 const GridFloor: React.FC = () => {
-  return <gridHelper args={[30, 30, '#4a5568', '#718096']} position={[0, -2.5, 0]} />;
+  return <gridHelper args={[50, 50, '#4a5568', '#718096']} position={[0, -2.5, 0]} />;
 };
 
 interface Container3DSceneProps {
@@ -227,6 +249,8 @@ interface Container3DSceneProps {
   autoRotate: boolean;
   errorBoxIds: string[];
   warningBoxIds: string[];
+  containerIndex: number;
+  positionOffset: [number, number, number];
 }
 
 const Container3DScene: React.FC<Container3DSceneProps> = ({
@@ -243,15 +267,12 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
   autoRotate,
   errorBoxIds,
   warningBoxIds,
+  containerIndex,
+  positionOffset,
 }) => {
   return (
-    <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[15, 12, 10]} intensity={1} castShadow shadow-mapSize={[2048, 2048]} />
-      <pointLight position={[-10, 10, -10]} intensity={0.4} />
-      <pointLight position={[5, -5, 10]} intensity={0.3} />
-      
-      <ContainerFrame dimensions={containerDimensions} opacity={containerOpacity} />
+    <group position={positionOffset}>
+      <ContainerFrame dimensions={containerDimensions} opacity={containerOpacity} containerIndex={containerIndex} />
       
       {cargoBoxes.map((box) => (
         <CargoBoxMesh
@@ -272,24 +293,20 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
           containerDimensions={containerDimensions}
         />
       )}
-      {showGrid && <GridFloor />}
-      
-      <OrbitControls
-        enableZoom={true}
-        enablePan={true}
-        enableRotate={true}
-        minDistance={3}
-        maxDistance={30}
-        minPolarAngle={0}
-        maxPolarAngle={Math.PI}
-        enableDamping={true}
-        dampingFactor={0.05}
-        autoRotate={autoRotate}
-        autoRotateSpeed={2}
-      />
-    </>
+    </group>
   );
 };
+
+interface MultiContainerData {
+  containerDimensions: ContainerDimensions;
+  cargoBoxes: CargoBox[];
+  placedCargos: PlacedCargo[];
+  containerSpec?: ContainerSpec;
+  centerOfGravity: [number, number, number];
+  isCogValid: boolean;
+  errorBoxIds: string[];
+  warningBoxIds: string[];
+}
 
 interface Container3DProps {
   containerDimensions?: ContainerDimensions;
@@ -297,6 +314,7 @@ interface Container3DProps {
   placedCargos?: PlacedCargo[];
   containerSpec?: ContainerSpec;
   className?: string;
+  multiContainerData?: MultiContainerData[];
 }
 
 const Container3D: React.FC<Container3DProps> = ({
@@ -305,6 +323,7 @@ const Container3D: React.FC<Container3DProps> = ({
   placedCargos = [],
   containerSpec,
   className = '',
+  multiContainerData = [],
 }) => {
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -313,6 +332,7 @@ const Container3D: React.FC<Container3DProps> = ({
   const [containerOpacity, setContainerOpacity] = useState(0.8);
   const [autoRotate, setAutoRotate] = useState(false);
   const [containerHeight, setContainerHeight] = useState(700);
+  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
   const [constraintViolations, setConstraintViolations] = useState<ConstraintViolation[]>([]);
   const [constraintWarnings, setConstraintWarnings] = useState<ConstraintViolation[]>([]);
   
@@ -343,6 +363,12 @@ const Container3D: React.FC<Container3DProps> = ({
     }
   }, [placedCargos, containerSpec]);
   
+  useEffect(() => {
+    if (multiContainerData.length > 1) {
+      setViewMode('multi');
+    }
+  }, [multiContainerData]);
+  
   const centerOfGravity = useMemo(() => {
     if (placedCargos.length === 0 || !containerSpec) {
       const centerX = containerDimensions.length / 2;
@@ -368,9 +394,36 @@ const Container3D: React.FC<Container3DProps> = ({
   const handleResetView = () => {
     setSelectedBoxId(null);
   };
+  
+  const maxContainers = Math.max(multiContainerData.length, 1);
+  const spacing = 3;
+  const totalWidth = maxContainers * (containerDimensions.length + spacing) - spacing;
+  const startOffset = -totalWidth / 2 + containerDimensions.length / 2;
+  
+  const getContainerOffset = (index: number): [number, number, number] => {
+    const x = startOffset + index * (containerDimensions.length + spacing);
+    return [x, 0, 0];
+  };
 
   return (
-    <div className={`w-full ${className} container3d-container`} style={{ minHeight: `${containerHeight + 150}px` }}>
+    <div className={`w-full ${className} container3d-container`} style={{ minHeight: `${containerHeight + 180}px` }}>
+      {multiContainerData.length > 1 && (
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '14px', fontWeight: '500', color: '#2d3748' }}>
+            共 {multiContainerData.length} 个集装箱
+          </span>
+          <Radio.Group 
+            value={viewMode} 
+            onChange={(e) => setViewMode(e.target.value as 'single' | 'multi')}
+            buttonStyle="solid"
+            style={{ marginLeft: '16px' }}
+          >
+            <Radio.Button value="single">逐个查看</Radio.Button>
+            <Radio.Button value="multi">并排展示</Radio.Button>
+          </Radio.Group>
+        </div>
+      )}
+      
       <div 
         className="container3d-canvas"
         style={{ 
@@ -381,24 +434,70 @@ const Container3D: React.FC<Container3DProps> = ({
         }}
       >
         <Canvas
-          camera={{ position: [12, 10, 12], fov: 40 }}
+          camera={{ position: viewMode === 'multi' ? [18 + maxContainers * 3, 12, 18 + maxContainers * 3] : [12, 10, 12], fov: Math.max(30, 40 - maxContainers * 2) }}
           style={{ background: 'linear-gradient(180deg, #1a202c 0%, #2d3748 50%, #4a5568 100%)', width: '100%', height: '100%' }}
           gl={{ antialias: true, alpha: true }}
         >
-          <Container3DScene
-            containerDimensions={containerDimensions}
-            cargoBoxes={cargoBoxes}
-            centerOfGravity={centerOfGravity}
-            isCogValid={isCogValid}
-            selectedBoxId={selectedBoxId}
-            onBoxSelect={setSelectedBoxId}
-            showGrid={showGrid}
-            showCenterOfGravity={showCenterOfGravity}
-            showLabels={showLabels}
-            containerOpacity={containerOpacity}
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[15, 12, 10]} intensity={1} castShadow shadow-mapSize={[2048, 2048]} />
+          <pointLight position={[-10, 10, -10]} intensity={0.4} />
+          <pointLight position={[5, -5, 10]} intensity={0.3} />
+          
+          {multiContainerData.length > 0 && viewMode === 'multi' ? (
+            multiContainerData.map((data, index) => (
+              <Container3DScene
+                key={index}
+                containerDimensions={data.containerDimensions}
+                cargoBoxes={data.cargoBoxes}
+                centerOfGravity={data.centerOfGravity}
+                isCogValid={data.isCogValid}
+                selectedBoxId={selectedBoxId}
+                onBoxSelect={setSelectedBoxId}
+                showGrid={showGrid}
+                showCenterOfGravity={showCenterOfGravity}
+                showLabels={showLabels}
+                containerOpacity={containerOpacity}
+                autoRotate={autoRotate}
+                errorBoxIds={data.errorBoxIds}
+                warningBoxIds={data.warningBoxIds}
+                containerIndex={index}
+                positionOffset={getContainerOffset(index)}
+              />
+            ))
+          ) : (
+            <Container3DScene
+              containerDimensions={containerDimensions}
+              cargoBoxes={cargoBoxes}
+              centerOfGravity={centerOfGravity}
+              isCogValid={isCogValid}
+              selectedBoxId={selectedBoxId}
+              onBoxSelect={setSelectedBoxId}
+              showGrid={showGrid}
+              showCenterOfGravity={showCenterOfGravity}
+              showLabels={showLabels}
+              containerOpacity={containerOpacity}
+              autoRotate={autoRotate}
+              errorBoxIds={errorBoxIds}
+              warningBoxIds={warningBoxIds}
+              containerIndex={0}
+              positionOffset={[0, 0, 0]}
+            />
+          )}
+          
+          {showGrid && <GridFloor />}
+          
+          <OrbitControls
+            enableZoom={true}
+            enablePan={true}
+            enableRotate={true}
+            minDistance={3}
+            maxDistance={40}
+            minPolarAngle={0}
+            maxPolarAngle={Math.PI}
+            enableDamping={true}
+            dampingFactor={0.05}
             autoRotate={autoRotate}
-            errorBoxIds={errorBoxIds}
-            warningBoxIds={warningBoxIds}
+            autoRotateSpeed={2}
           />
         </Canvas>
       </div>
@@ -527,6 +626,10 @@ const Container3D: React.FC<Container3DProps> = ({
               <p style={{ margin: '4px 0 0 0', fontWeight: '500' }}>{selectedBox.name}</p>
             </div>
             <div>
+              <span style={{ color: '#718096', fontSize: '12px' }}>所属集装箱</span>
+              <p style={{ margin: '4px 0 0 0', fontWeight: '500' }}>#{selectedBox.containerIndex + 1}</p>
+            </div>
+            <div>
               <span style={{ color: '#718096', fontSize: '12px' }}>尺寸</span>
               <p style={{ margin: '4px 0 0 0' }}>
                 {selectedBox.size[0].toFixed(2)} × {selectedBox.size[1].toFixed(2)} × {selectedBox.size[2].toFixed(2)} m
@@ -553,14 +656,14 @@ const Container3D: React.FC<Container3DProps> = ({
 };
 
 export const sampleCargoBoxes: CargoBox[] = [
-  { id: '1', position: [-1.5, -0.5, -0.5], size: [1.2, 1, 1], color: '#4299e1', name: '货物 A' },
-  { id: '2', position: [0.5, -0.5, -0.5], size: [1.2, 1, 1], color: '#48bb78', name: '货物 B' },
-  { id: '3', position: [2, -0.5, -0.5], size: [1, 1, 1], color: '#ed8936', name: '货物 C' },
-  { id: '4', position: [-1.5, -0.5, 0.8], size: [1.2, 1, 0.8], color: '#9f7aea', name: '货物 D' },
-  { id: '5', position: [0.5, -0.5, 0.8], size: [1.2, 1, 0.8], color: '#f56565', name: '货物 E' },
-  { id: '6', position: [-1.5, 0.6, -0.5], size: [1.2, 0.8, 1], color: '#38b2ac', name: '货物 F' },
-  { id: '7', position: [0.5, 0.6, -0.5], size: [1.2, 0.8, 1], color: '#d69e2e', name: '货物 G' },
+  { id: '1', position: [-1.5, -0.5, -0.5], size: [1.2, 1, 1], color: '#4299e1', name: '货物 A', containerIndex: 0 },
+  { id: '2', position: [0.5, -0.5, -0.5], size: [1.2, 1, 1], color: '#48bb78', name: '货物 B', containerIndex: 0 },
+  { id: '3', position: [2, -0.5, -0.5], size: [1, 1, 1], color: '#ed8936', name: '货物 C', containerIndex: 0 },
+  { id: '4', position: [-1.5, -0.5, 0.8], size: [1.2, 1, 0.8], color: '#9f7aea', name: '货物 D', containerIndex: 0 },
+  { id: '5', position: [0.5, -0.5, 0.8], size: [1.2, 1, 0.8], color: '#f56565', name: '货物 E', containerIndex: 0 },
+  { id: '6', position: [-1.5, 0.6, -0.5], size: [1.2, 0.8, 1], color: '#38b2ac', name: '货物 F', containerIndex: 0 },
+  { id: '7', position: [0.5, 0.6, -0.5], size: [1.2, 0.8, 1], color: '#d69e2e', name: '货物 G', containerIndex: 0 },
 ];
 
-export type { CargoBox, ContainerDimensions, Container3DProps };
+export type { CargoBox, ContainerDimensions, Container3DProps, MultiContainerData };
 export default Container3D;

@@ -585,10 +585,17 @@ export const validatePacking = (result: PackingResult): { valid: boolean; errors
   };
 };
 
+export const DEFAULT_FFD_CONFIG: FFDOptions = {
+  allowRotation: true,
+  prioritizeWeight: false,
+  maxContainers: 100
+};
+
 export default {
   ffdPacking,
   optimizePacking,
   validatePacking,
   applyRotation,
-  canFitInSpace
+  canFitInSpace,
+  DEFAULT_FFD_CONFIG
 };

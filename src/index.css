@@ -72,30 +72,35 @@ body {
 .app-header {
   background: linear-gradient(135deg, var(--bg-dark) 0%, #2d3748 100%);
   color: var(--text-white);
-  padding: var(--spacing-md) var(--spacing-xl);
+  padding: 16px var(--spacing-xl);
   text-align: center;
   box-shadow: var(--shadow-md);
   min-height: 80px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  gap: 4px;
 }
 
 .app-header h1 {
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: var(--spacing-xs);
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 12px !important;
-  line-height: 1.5 !important;
-  margin-top: 0;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1.4;
 }
 
 .app-header p {
   color: var(--text-light);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 0;
+  opacity: 0.9;
 }
 
 .app-main {
