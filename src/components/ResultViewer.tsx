@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 import {
   Card,
   Table,
@@ -20,6 +21,9 @@ import {
   Descriptions,
   Alert,
   Collapse,
+  Modal,
+  Select,
+  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -35,9 +39,14 @@ import {
   InfoCircleOutlined,
   ClockCircleOutlined,
   CalculatorOutlined,
+  FileExcelOutlined,
+  FileTextOutlined as FileTextIcon,
+  CodeOutlined,
 } from '@ant-design/icons';
 import type { CargoItem } from './CargoManager';
 import type { ContainerType } from './ContainerSelector';
+
+const { Option } = Select;
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -90,6 +99,232 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedContainer, setSelectedContainer] = useState(0);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'json' | 'txt'>('excel');
+
+  const handleExport = () => {
+    setExportModalVisible(true);
+  };
+
+  const handleConfirmExport = () => {
+    if (!result) return;
+    
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    
+    switch (exportFormat) {
+      case 'excel':
+        exportToExcel(result, timestamp);
+        break;
+      case 'csv':
+        exportToCsv(result, timestamp);
+        break;
+      case 'json':
+        exportToJson(result, timestamp);
+        break;
+      case 'txt':
+        exportToTxt(result, timestamp);
+        break;
+    }
+    
+    setExportModalVisible(false);
+    message.success('导出成功');
+  };
+
+  const exportToExcel = (data: LoadingResult, timestamp: string) => {
+    const worksheetData: any[][] = [];
+    
+    worksheetData.push(['装柜清单报告', '', '', '', '', '', '', '']);
+    worksheetData.push(['生成时间:', new Date().toLocaleString(), '', '', '', '', '', '']);
+    worksheetData.push(['算法:', data.algorithm, '', '', '', '', '', '']);
+    worksheetData.push(['计算耗时:', `${data.calculationTime.toFixed(2)}秒`, '', '', '', '', '', '']);
+    worksheetData.push(['', '', '', '', '', '', '', '']);
+    
+    worksheetData.push(['=== 统计信息 ===', '', '', '', '', '', '', '']);
+    worksheetData.push(['使用集装箱数', data.totalContainers, '个', '', '', '', '', '']);
+    worksheetData.push(['装载货物总数', data.totalCargoCount, '件', '', '', '', '', '']);
+    worksheetData.push(['平均利用率', `${data.averageUtilization.toFixed(1)}`, '%', '', '', '', '', '']);
+    worksheetData.push(['', '', '', '', '', '', '', '']);
+    
+    worksheetData.push(['=== 各集装箱装载详情 ===', '', '', '', '', '', '', '']);
+    worksheetData.push(['', '', '', '', '', '', '', '']);
+    
+    data.containers.forEach((container, containerIndex) => {
+      worksheetData.push([`集装箱 #${containerIndex + 1}`, container.container.name, '', '', '', '', '', '']);
+      worksheetData.push(['货物名称', '长度(cm)', '宽度(cm)', '高度(cm)', '重量(kg)', '数量', '位置X', '位置Y', '位置Z']);
+      
+      container.cargoList.forEach(cargo => {
+        worksheetData.push([
+          cargo.name,
+          cargo.length,
+          cargo.width,
+          cargo.height,
+          cargo.weight,
+          1,
+          cargo.position.x,
+          cargo.position.y,
+          cargo.position.z,
+        ]);
+      });
+      
+      worksheetData.push(['', '', '', '', '', '', '', '']);
+      worksheetData.push(['体积利用率', `${container.volumeUtilization.toFixed(1)}%`, '', '', '', '', '', '']);
+      worksheetData.push(['重量利用率', `${container.weightUtilization.toFixed(1)}%`, '', '', '', '', '', '']);
+      worksheetData.push(['装载货物', `${container.loadedCount}件`, '', '', '', '', '', '']);
+      worksheetData.push(['总重量', `${container.totalWeight.toFixed(1)}kg`, '', '', '', '', '', '']);
+      worksheetData.push(['', '', '', '', '', '', '', '']);
+    });
+    
+    if (data.unplacedCargo.length > 0) {
+      worksheetData.push(['=== 未装载货物 ===', '', '', '', '', '', '', '']);
+      worksheetData.push(['货物名称', '长度(cm)', '宽度(cm)', '高度(cm)', '重量(kg)', '数量', '', '']);
+      data.unplacedCargo.forEach(cargo => {
+        worksheetData.push([
+          cargo.name,
+          cargo.length,
+          cargo.width,
+          cargo.height,
+          cargo.weight,
+          cargo.quantity,
+          '',
+        ]);
+      });
+    }
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '装柜清单');
+    XLSX.writeFile(workbook, `装柜清单_${timestamp}.xlsx`);
+  };
+
+  const exportToCsv = (data: LoadingResult, timestamp: string) => {
+    let csv = '\uFEFF';
+    csv += '集装箱,货物名称,长度(cm),宽度(cm),高度(cm),重量(kg),数量,位置X,位置Y,位置Z\n';
+    
+    data.containers.forEach((container, containerIndex) => {
+      container.cargoList.forEach(cargo => {
+        csv += `${container.container.name},`;
+        csv += `"${cargo.name}",`;
+        csv += `${cargo.length},`;
+        csv += `${cargo.width},`;
+        csv += `${cargo.height},`;
+        csv += `${cargo.weight},`;
+        csv += `1,`;
+        csv += `${cargo.position.x},`;
+        csv += `${cargo.position.y},`;
+        csv += `${cargo.position.z}\n`;
+      });
+    });
+    
+    downloadFile(csv, `装柜清单_${timestamp}.csv`, 'text/csv');
+  };
+
+  const exportToJson = (data: LoadingResult, timestamp: string) => {
+    const exportData = {
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        algorithm: data.algorithm,
+        calculationTime: data.calculationTime,
+      },
+      statistics: {
+        totalContainers: data.totalContainers,
+        totalCargoCount: data.totalCargoCount,
+        averageUtilization: data.averageUtilization,
+      },
+      containers: data.containers.map(container => ({
+        type: container.container,
+        volumeUtilization: container.volumeUtilization,
+        weightUtilization: container.weightUtilization,
+        loadedCount: container.loadedCount,
+        totalWeight: container.totalWeight,
+        cargoList: container.cargoList,
+      })),
+      unplacedCargo: data.unplacedCargo,
+    };
+    
+    downloadFile(JSON.stringify(exportData, null, 2), `装柜清单_${timestamp}.json`, 'application/json');
+  };
+
+  const exportToTxt = (data: LoadingResult, timestamp: string) => {
+    let txt = '='.repeat(60) + '\n';
+    txt += '          集装箱装柜清单报告\n';
+    txt += '='.repeat(60) + '\n\n';
+    
+    txt += `生成时间: ${new Date().toLocaleString()}\n`;
+    txt += `算法类型: ${data.algorithm}\n`;
+    txt += `计算耗时: ${data.calculationTime.toFixed(2)} 秒\n\n`;
+    
+    txt += '【统计信息】\n';
+    txt += '-'.repeat(40) + '\n';
+    txt += `  使用集装箱数: ${data.totalContainers} 个\n`;
+    txt += `  装载货物总数: ${data.totalCargoCount} 件\n`;
+    txt += `  平均体积利用率: ${data.averageUtilization.toFixed(1)}%\n\n`;
+    
+    data.containers.forEach((container, containerIndex) => {
+      txt += `【集装箱 #${containerIndex + 1} - ${container.container.name}】\n`;
+      txt += '-'.repeat(40) + '\n';
+      txt += `  规格: ${container.container.length}×${container.container.width}×${container.container.height} cm\n`;
+      txt += `  体积利用率: ${container.volumeUtilization.toFixed(1)}%\n`;
+      txt += `  重量利用率: ${container.weightUtilization.toFixed(1)}%\n`;
+      txt += `  装载货物: ${container.loadedCount} 件\n`;
+      txt += `  总重量: ${container.totalWeight.toFixed(1)} kg\n\n`;
+      
+      txt += '  装载明细:\n';
+      container.cargoList.forEach((cargo, idx) => {
+        txt += `    ${idx + 1}. ${cargo.name} | ${cargo.length}×${cargo.width}×${cargo.height}cm | ${cargo.weight}kg\n`;
+      });
+      txt += '\n';
+    });
+    
+    if (data.unplacedCargo.length > 0) {
+      txt += '【未装载货物】\n';
+      txt += '-'.repeat(40) + '\n';
+      data.unplacedCargo.forEach((cargo, idx) => {
+        txt += `  ${idx + 1}. ${cargo.name} | 数量: ${cargo.quantity}\n`;
+      });
+      txt += '\n';
+    }
+    
+    txt += '='.repeat(60) + '\n';
+    txt += '                    报告结束\n';
+    txt += '='.repeat(60);
+    
+    downloadFile(txt, `装柜清单_${timestamp}.txt`, 'text/plain');
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShare = () => {
+    if (!result) return;
+    
+    const shareData = {
+      title: '集装箱装载优化结果',
+      text: `装载了 ${result.totalCargoCount} 件货物到 ${result.totalContainers} 个集装箱，平均利用率 ${result.averageUtilization.toFixed(1)}%`,
+    };
+    
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {
+        message.info('分享已取消');
+      });
+    } else {
+      const textToCopy = `集装箱装载优化结果\n\n装载货物: ${result.totalCargoCount} 件\n使用集装箱: ${result.totalContainers} 个\n平均利用率: ${result.averageUtilization.toFixed(1)}%\n算法: ${result.algorithm}`;
+      
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        message.success('分享信息已复制到剪贴板');
+      }).catch(() => {
+        message.info('分享信息:\n' + textToCopy);
+      });
+    }
+  };
 
   if (!result) {
     return (
@@ -474,7 +709,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
                   title={item.name}
                   description={`总重量: ${item.totalWeight.toFixed(1)} kg`}
                 />
-                <Badge count={item.count} style={{ backgroundColor: '#52c41a' }} />
+                <Badge count={item.count} style={{ backgroundColor: '#52c41a' }} overflowCount={999} />
               </List.Item>
             )}
           />
@@ -512,66 +747,125 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
     );
   };
 
-  return (
-    <Card
-      title={
-        <Space>
-          <CheckCircleOutlined />
-          <Title level={4} style={{ margin: 0 }}>
-            计算结果
-          </Title>
-          <Tag color="green">完成</Tag>
-        </Space>
-      }
-      extra={
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={onExport}>
-            导出报告
-          </Button>
-          <Button icon={<ShareAltOutlined />} onClick={onShare}>
-            分享
-          </Button>
-        </Space>
-      }
-    >
-      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card">
-        <TabPane
-          tab={
+    return (
+      <>
+        <Card
+          title={
             <Space>
-              <BarChartOutlined />
-              概览
+              <CheckCircleOutlined />
+              <Title level={4} style={{ margin: 0 }}>
+                计算结果
+              </Title>
+              <Tag color="green">完成</Tag>
             </Space>
           }
-          key="overview"
-        >
-          {renderOverview()}
-        </TabPane>
-        <TabPane
-          tab={
+          extra={
             <Space>
-              <ContainerOutlined />
-              集装箱详情
-              <Badge count={result.totalContainers} style={{ backgroundColor: '#1890ff' }} />
+              <Button icon={<DownloadOutlined />} onClick={handleExport}>
+                导出报告
+              </Button>
+              <Button icon={<ShareAltOutlined />} onClick={handleShare}>
+                分享
+              </Button>
             </Space>
           }
-          key="containers"
         >
-          {renderContainerDetail()}
-        </TabPane>
-        <TabPane
-          tab={
-            <Space>
-              <BoxPlotOutlined />
-              货物统计
-            </Space>
-          }
-          key="cargo"
+          <Tabs activeKey={activeTab} onChange={setActiveTab} type="card">
+            <TabPane
+              tab={
+                <Space>
+                  <BarChartOutlined />
+                  概览
+                </Space>
+              }
+              key="overview"
+            >
+              {renderOverview()}
+            </TabPane>
+            <TabPane
+              tab={
+                <Space>
+                  <ContainerOutlined />
+                  集装箱详情
+                  <Badge count={result.totalContainers} style={{ backgroundColor: '#1890ff' }} />
+                </Space>
+              }
+              key="containers"
+            >
+              {renderContainerDetail()}
+            </TabPane>
+            <TabPane
+              tab={
+                <Space>
+                  <BoxPlotOutlined />
+                  货物统计
+                </Space>
+              }
+              key="cargo"
+            >
+              {renderCargoStats()}
+            </TabPane>
+          </Tabs>
+        </Card>
+
+        <Modal
+          title="导出报告"
+          visible={exportModalVisible}
+          onCancel={() => setExportModalVisible(false)}
+          onOk={handleConfirmExport}
+          okText="导出"
+          cancelText="取消"
         >
-          {renderCargoStats()}
-        </TabPane>
-      </Tabs>
-    </Card>
-  );
-};
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <Text strong>选择导出格式：</Text>
+              <Select
+                value={exportFormat}
+                onChange={(value) => setExportFormat(value as any)}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                <Option value="excel">
+                  <Space>
+                    <FileExcelOutlined />
+                    Excel (.xlsx)
+                  </Space>
+                </Option>
+                <Option value="csv">
+                  <Space>
+                    <FileTextIcon />
+                    CSV (.csv)
+                  </Space>
+                </Option>
+                <Option value="json">
+                  <Space>
+                    <CodeOutlined />
+                    JSON (.json)
+                  </Space>
+                </Option>
+                <Option value="txt">
+                  <Space>
+                    <FileTextIcon />
+                    文本报告 (.txt)
+                  </Space>
+                </Option>
+              </Select>
+            </div>
+            
+            <Divider />
+            
+            <div>
+              <Text type="secondary">导出内容包含：</Text>
+              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+                <li>统计信息（集装箱数量、货物总数、利用率等）</li>
+                <li>各集装箱装载详情</li>
+                <li>货物明细列表</li>
+                <li>未装载货物列表（如有）</li>
+              </ul>
+            </div>
+          </Space>
+        </Modal>
+      </>
+    );
+  };
 
 export default ResultViewer;
