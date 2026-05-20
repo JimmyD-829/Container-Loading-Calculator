@@ -32,7 +32,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: container-loading-calculator
+          projectName: containercalculator
           directory: dist
           branch: main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
