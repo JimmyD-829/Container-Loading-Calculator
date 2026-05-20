@@ -1,19 +1,19 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Box, Line, Sphere, Html, CameraControls } from '@react-three/drei';
+import { OrbitControls, Box, Line, Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button, Slider, Tooltip } from 'antd';
 import {
-  RotateCcwOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
-  GridOutlined,
-  CrosshairOutlined,
+  TableOutlined,
+  TagOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
-  Maximize2Outlined,
+  ZoomInOutlined,
+  RestOutlined,
 } from '@ant-design/icons';
 
 interface CargoBox {
@@ -62,23 +62,15 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
 
   return (
     <group>
-      {/* 容器内部底面 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -height / 2, 0]}>
         <planeGeometry args={[length, width]} />
         <meshStandardMaterial color="#4a5568" transparent opacity={0.3} />
       </mesh>
       
-      {/* 容器线框 */}
       {points.map((linePoints, index) => (
-        <Line
-          key={index}
-          points={linePoints}
-          color="#4a5568"
-          lineWidth={2}
-        />
+        <Line key={index} points={linePoints} color="#4a5568" lineWidth={2} />
       ))}
       
-      {/* 容器半透明面板 */}
       <mesh position={[length / 2, 0, 0]}>
         <planeGeometry args={[height, width]} />
         <meshStandardMaterial color="#2d3748" transparent opacity={opacity * 0.3} side={THREE.DoubleSide} />
@@ -95,13 +87,8 @@ const ContainerFrame: React.FC<ContainerProps> = ({ dimensions, opacity = 0.8 })
   );
 };
 
-const CargoBoxMesh: React.FC<{ 
-  box: CargoBox; 
-  isSelected: boolean; 
-  onClick: () => void;
-  showLabels: boolean;
-}> = ({ box, isSelected, onClick, showLabels }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
+const CargoBoxMesh: React.FC<{ box: CargoBox; isSelected: boolean; onClick: () => void; showLabels: boolean }> = ({ box, isSelected, onClick, showLabels }) => {
+  const meshRef = React.useRef<THREE.Mesh>(null);
   
   useFrame(() => {
     if (meshRef.current && isSelected) {
@@ -162,28 +149,12 @@ const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ pos
   return (
     <group position={position}>
       <Sphere args={[0.12]}>
-        <meshStandardMaterial 
-          color="#e53e3e" 
-          emissive="#c53030"
-          emissiveIntensity={0.6}
-        />
+        <meshStandardMaterial color="#e53e3e" emissive="#c53030" emissiveIntensity={0.6} />
       </Sphere>
       
-      <Line
-        points={[new THREE.Vector3(-0.6, 0, 0), new THREE.Vector3(0.6, 0, 0)]}
-        color="#e53e3e"
-        lineWidth={3}
-      />
-      <Line
-        points={[new THREE.Vector3(0, -0.6, 0), new THREE.Vector3(0, 0.6, 0)]}
-        color="#e53e3e"
-        lineWidth={3}
-      />
-      <Line
-        points={[new THREE.Vector3(0, 0, -0.6), new THREE.Vector3(0, 0, 0.6)]}
-        color="#e53e3e"
-        lineWidth={3}
-      />
+      <Line points={[new THREE.Vector3(-0.6, 0, 0), new THREE.Vector3(0.6, 0, 0)]} color="#e53e3e" lineWidth={3} />
+      <Line points={[new THREE.Vector3(0, -0.6, 0), new THREE.Vector3(0, 0.6, 0)]} color="#e53e3e" lineWidth={3} />
+      <Line points={[new THREE.Vector3(0, 0, -0.6), new THREE.Vector3(0, 0, 0.6)]} color="#e53e3e" lineWidth={3} />
       
       <Html distanceFactor={10} position={[0, 0.35, 0]}>
         <div style={{
@@ -205,12 +176,7 @@ const CenterOfGravity: React.FC<{ position: [number, number, number] }> = ({ pos
 };
 
 const GridFloor: React.FC = () => {
-  return (
-    <gridHelper 
-      args={[30, 30, '#4a5568', '#718096']} 
-      position={[0, -2.5, 0]}
-    />
-  );
+  return <gridHelper args={[30, 30, '#4a5568', '#718096']} position={[0, -2.5, 0]} />;
 };
 
 interface Container3DSceneProps {
@@ -238,28 +204,10 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
   containerOpacity,
   autoRotate,
 }) => {
-  const controlsRef = useRef<any>(null);
-  
-  useFrame(() => {
-    if (controlsRef.current && autoRotate) {
-      controlsRef.current.autoRotate = true;
-      controlsRef.current.autoRotateSpeed = 2;
-    } else if (controlsRef.current) {
-      controlsRef.current.autoRotate = false;
-    }
-  });
-
   return (
     <>
       <ambientLight intensity={0.5} />
-      
-      <directionalLight 
-        position={[15, 12, 10]} 
-        intensity={1} 
-        castShadow 
-        shadow-mapSize={[2048, 2048]}
-      />
-      
+      <directionalLight position={[15, 12, 10]} intensity={1} castShadow shadow-mapSize={[2048, 2048]} />
       <pointLight position={[-10, 10, -10]} intensity={0.4} />
       <pointLight position={[5, -5, 10]} intensity={0.3} />
       
@@ -275,22 +223,18 @@ const Container3DScene: React.FC<Container3DSceneProps> = ({
         />
       ))}
       
-      {showCenterOfGravity && (
-        <CenterOfGravity position={centerOfGravity} />
-      )}
+      {showCenterOfGravity && <CenterOfGravity position={centerOfGravity} />}
+      {showGrid && <GridFloor />}
       
-      {showGrid && (
-        <GridFloor />
-      )}
-      
-      <CameraControls
-        ref={controlsRef}
+      <OrbitControls
         minDistance={4}
         maxDistance={25}
         enableZoom={true}
         enablePan={true}
         enableRotate={true}
         target={[0, 0, 0]}
+        autoRotate={autoRotate}
+        autoRotateSpeed={2}
       />
     </>
   );
@@ -368,111 +312,59 @@ const Container3D: React.FC<Container3DProps> = ({
       }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <Tooltip title="正面视图">
-            <Button 
-              icon={<ArrowUpOutlined />} 
-              onClick={() => handlePresetView('front')}
-              size="small"
-            />
+            <Button icon={<ArrowUpOutlined />} onClick={() => handlePresetView('front')} size="small" />
           </Tooltip>
           <Tooltip title="背面视图">
-            <Button 
-              icon={<ArrowDownOutlined />} 
-              onClick={() => handlePresetView('back')}
-              size="small"
-            />
+            <Button icon={<ArrowDownOutlined />} onClick={() => handlePresetView('back')} size="small" />
           </Tooltip>
           <Tooltip title="左侧视图">
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={() => handlePresetView('left')}
-              size="small"
-            />
+            <Button icon={<ArrowLeftOutlined />} onClick={() => handlePresetView('left')} size="small" />
           </Tooltip>
           <Tooltip title="右侧视图">
-            <Button 
-              icon={<ArrowRightOutlined />} 
-              onClick={() => handlePresetView('right')}
-              size="small"
-            />
+            <Button icon={<ArrowRightOutlined />} onClick={() => handlePresetView('right')} size="small" />
           </Tooltip>
           <Tooltip title="顶部视图">
-            <Button 
-              icon={<CrosshairOutlined />} 
-              onClick={() => handlePresetView('top')}
-              size="small"
-            />
+            <Button icon={<TagOutlined />} onClick={() => handlePresetView('top')} size="small" />
           </Tooltip>
           <Tooltip title="等轴测视图">
-            <Button 
-              icon={<Maximize2Outlined />} 
-              onClick={() => handlePresetView('iso')}
-              size="small"
-            />
+            <Button icon={<ZoomInOutlined />} onClick={() => handlePresetView('iso')} size="small" />
           </Tooltip>
           
           <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
           
           <Tooltip title="重置视图">
-            <Button 
-              icon={<RotateCcwOutlined />} 
-              onClick={handleResetView}
-              size="small"
-            />
+            <Button icon={<RestOutlined />} onClick={handleResetView} size="small" />
           </Tooltip>
           <Tooltip title={autoRotate ? '停止旋转' : '自动旋转'}>
-            <Button 
-              icon={autoRotate ? <EyeInvisibleOutlined /> : <EyeOutlined />} 
-              onClick={() => setAutoRotate(!autoRotate)}
-              size="small"
-              type={autoRotate ? 'primary' : 'default'}
-            />
+            <Button icon={autoRotate ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => setAutoRotate(!autoRotate)} size="small" type={autoRotate ? 'primary' : 'default'} />
           </Tooltip>
         </div>
         
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>网格</span>
-            <Button
-              type={showGrid ? 'primary' : 'default'}
-              size="small"
-              onClick={() => setShowGrid(!showGrid)}
-            >
-              <GridOutlined />
+            <Button type={showGrid ? 'primary' : 'default'} size="small" onClick={() => setShowGrid(!showGrid)}>
+              <TableOutlined />
             </Button>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>重心</span>
-            <Button
-              type={showCenterOfGravity ? 'primary' : 'default'}
-              size="small"
-              onClick={() => setShowCenterOfGravity(!showCenterOfGravity)}
-            >
-              <CrosshairOutlined />
+            <Button type={showCenterOfGravity ? 'primary' : 'default'} size="small" onClick={() => setShowCenterOfGravity(!showCenterOfGravity)}>
+              <TagOutlined />
             </Button>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>标签</span>
-            <Button
-              type={showLabels ? 'primary' : 'default'}
-              size="small"
-              onClick={() => setShowLabels(!showLabels)}
-            >
+            <Button type={showLabels ? 'primary' : 'default'} size="small" onClick={() => setShowLabels(!showLabels)}>
               <EyeOutlined />
             </Button>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>容器透明度</span>
-            <Slider
-              min={0}
-              max={1}
-              step={0.1}
-              value={containerOpacity}
-              onChange={setContainerOpacity}
-              style={{ width: '100px' }}
-            />
+            <Slider min={0} max={1} step={0.1} value={containerOpacity} onChange={setContainerOpacity} style={{ width: '100px' }} />
           </div>
         </div>
       </div>
@@ -508,15 +400,7 @@ const Container3D: React.FC<Container3DProps> = ({
             <div>
               <span style={{ color: '#718096', fontSize: '12px' }}>颜色</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <div 
-                  style={{ 
-                    width: '24px', 
-                    height: '24px', 
-                    borderRadius: '4px', 
-                    backgroundColor: selectedBox.color,
-                    border: '1px solid #e2e8f0'
-                  }} 
-                />
+                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: selectedBox.color, border: '1px solid #e2e8f0' }} />
                 <span>{selectedBox.color}</span>
               </div>
             </div>
