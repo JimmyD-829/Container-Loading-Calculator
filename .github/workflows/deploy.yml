@@ -14,6 +14,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: List repository content
+        run: ls -la
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
@@ -26,8 +29,11 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Verify dist directory exists
+      - name: List dist directory
         run: ls -la dist/
+
+      - name: Verify wrangler config
+        run: cat wrangler.toml
 
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy
