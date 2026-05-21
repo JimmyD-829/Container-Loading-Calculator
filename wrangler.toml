@@ -6,3 +6,9 @@ command = "npm run build"
 
 [assets]
 directory = "dist"
+
+[http]
+compression = true
+
+[security]
+cors = true
