@@ -13,6 +13,7 @@ import ContainerSelector, { ContainerType as SelectorContainerType, DEFAULT_CONT
 import CalculationConfig, { CalculationConfig as ConfigType } from './components/CalculationConfig';
 import ResultViewer, { LoadingResult, LoadedCargo } from './components/ResultViewer';
 import Container3D, { CargoBox, ContainerDimensions, MultiContainerData } from './components/Container3D';
+import NewsMarquee from './components/NewsMarquee';
 import { ffdPacking } from './algorithms/ffd';
 import { Cargo, ContainerSpec, PackingResult, CargoType } from './types';
 import { CONTAINER_40HQ, STANDARD_CONTAINERS, createCustomContainerSpec } from './data/containers';
@@ -261,6 +262,13 @@ const convertToViewerResult = (packingResult: PackingResult, originalCargos: Car
   };
 };
 
+const navItems = [
+  { key: 0, title: '货物管理', icon: <InboxOutlined /> },
+  { key: 1, title: '集装箱选择', icon: <ContainerOutlined /> },
+  { key: 2, title: '计算配置', icon: <CalculatorOutlined /> },
+  { key: 3, title: '查看结果', icon: <FileTextOutlined /> },
+];
+
 const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [cargoList, setCargoList] = useState<CargoItem[]>([
@@ -303,7 +311,7 @@ const App: React.FC = () => {
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [loadingResult, setLoadingResult] = useState<LoadingResult | null>(null);
-  const [show3DView, setShow3DView] = useState(false);
+  const [show3DView, setShow3DView] = useState(true);
   const [selected3DContainerIndex, setSelected3DContainerIndex] = useState(0);
   const [selectedCargoIds, setSelectedCargoIds] = useState<string[]>([]);
 
@@ -501,24 +509,57 @@ const App: React.FC = () => {
         },
       }}
     >
-      <Layout className="app">
-        <header className="app-header">
-          <h1>🚢 集装箱装载优化工具</h1>
-          <p>智能 3D 装载规划与可视化系统</p>
-        </header>
-        <Content className="app-main">
-          <Steps
-            current={currentStep}
-            items={steps}
-            onChange={setCurrentStep}
-            style={{ marginBottom: '32px' }}
-          />
-          {renderStepContent()}
-        </Content>
-        <Footer className="app-footer">
-          <p>© 2024 Container Loading Optimizer. All rights reserved.</p>
-        </Footer>
-      </Layout>
+      <div className="app-container">
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <span className="sidebar-icon">🚢</span>
+            <span className="sidebar-title">集装箱装载</span>
+          </div>
+          
+          <nav className="sidebar-nav">
+            <div className="nav-label">功能模块</div>
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                className={`nav-btn ${currentStep === item.key ? 'active' : ''}`}
+                onClick={() => setCurrentStep(item.key)}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-text">{item.title}</span>
+              </button>
+            ))}
+          </nav>
+          
+          <div className="sidebar-footer">
+            <button
+              className="calc-button"
+              onClick={handleCalculate}
+              disabled={!selectedContainer || cargoList.length === 0 || isCalculating}
+            >
+              {isCalculating ? (
+                <span>计算中...</span>
+              ) : (
+                <>
+                  <CalculatorOutlined />
+                  <span>开始计算</span>
+                </>
+              )}
+            </button>
+          </div>
+        </aside>
+        
+        <main className="main-content">
+          <NewsMarquee />
+          <header className="main-header">
+            <h1>{navItems[currentStep]?.title || '货物管理'}</h1>
+            <span className="main-subtitle">智能 3D 装载规划与可视化系统</span>
+          </header>
+          
+          <div className="content-area">
+            {renderStepContent()}
+          </div>
+        </main>
+      </div>
     </ConfigProvider>
   );
 };
