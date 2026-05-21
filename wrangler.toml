@@ -1,2 +1,5 @@
-# This file is no longer used - using Cloudflare Pages instead
-# See .github/workflows/deploy.yml for deployment configuration
+name = "containercalculator"
+compatibility_date = "2024-09-23"
+
+[assets]
+directory = "./dist"
