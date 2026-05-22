@@ -147,7 +147,9 @@ const WeatherWidget: React.FC = () => {
           className="weather-tooltip"
           style={{
             left: tooltipPosition.x - 90,
-            top: tooltipPosition.y + 15,
+            top: tooltipPosition.y + 20,
+            position: 'fixed',
+            zIndex: 999999,
           }}
         >
           <div className="tooltip-header">
