@@ -333,6 +333,102 @@ export interface CameraPosition {
   target: Position;
 }
 
+// ==================== 方案版本管理类型 ====================
+
+/**
+ * 方案状态枚举
+ */
+export enum SolutionStatus {
+  DRAFT = 'draft',           // 草稿
+  CALCULATED = 'calculated', // 已计算
+  APPROVED = 'approved',     // 已批准
+  DEPLOYED = 'deployed',     // 已部署
+  ARCHIVED = 'archived'      // 已归档
+}
+
+/**
+ * 方案标签
+ */
+export interface SolutionTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+/**
+ * 方案版本
+ */
+export interface SolutionVersion {
+  id: string;
+  versionNumber: string;
+  createdAt: Date;
+  createdBy: string;
+  comment: string;
+  changes: string[];
+}
+
+/**
+ * 装载方案
+ */
+export interface Solution {
+  id: string;
+  name: string;
+  description?: string;
+  status: SolutionStatus;
+  tags: SolutionTag[];
+  
+  // 方案内容
+  cargoIds: string[];
+  containerSpecs: ContainerSpec[];
+  settings: CalculationSettings;
+  result: PackingResult | null;
+  
+  // 版本信息
+  currentVersion: string;
+  versions: SolutionVersion[];
+  
+  // 时间信息
+  createdAt: Date;
+  updatedAt: Date;
+  lastCalculatedAt?: Date;
+  
+  // 审核信息
+  approvedBy?: string;
+  approvedAt?: Date;
+}
+
+/**
+ * 方案查询条件
+ */
+export interface SolutionQuery {
+  keywords?: string;
+  status?: SolutionStatus[];
+  tags?: string[];
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+  containerTypes?: ContainerType[];
+  page: number;
+  pageSize: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'name';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * 方案对比结果
+ */
+export interface SolutionComparison {
+  solutions: Solution[];
+  comparison: {
+    totalContainers: number[];
+    volumeUtilization: number[];
+    weightUtilization: number[];
+    cargoCount: number[];
+    calculationTime: number[];
+  };
+}
+
 // ==================== API 响应类型 ====================
 
 /**
