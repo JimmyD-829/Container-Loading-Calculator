@@ -16,6 +16,7 @@ const WeatherWidget: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const fetchWeather = async (latitude: number, longitude: number) => {
@@ -122,11 +123,19 @@ const WeatherWidget: React.FC = () => {
     );
   }
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setTooltipPosition({
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
   return (
     <div
       className="weather-widget"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onMouseMove={handleMouseMove}
     >
       <span className="weather-icon">{weather?.icon}</span>
       <span className="weather-text">
@@ -134,7 +143,13 @@ const WeatherWidget: React.FC = () => {
       </span>
       
       {isHovered && (
-        <div className="weather-tooltip">
+        <div 
+          className="weather-tooltip"
+          style={{
+            left: tooltipPosition.x - 90,
+            top: tooltipPosition.y + 15,
+          }}
+        >
           <div className="tooltip-header">
             <span className="tooltip-icon">{weather?.icon}</span>
             <span className="tooltip-city">{weather?.city}</span>
