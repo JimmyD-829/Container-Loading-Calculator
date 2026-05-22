@@ -306,24 +306,59 @@
   font-weight: 500;
 }
 
-.weather-tooltip {
-  position: fixed !important;
-  top: 50px !important;
-  right: 20px !important;
-  background: #ffffff !important;
+.weather-tooltip-wrapper {
+  z-index: 999999 !important;
+}
+
+.weather-tooltip-content {
+  background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
   padding: 16px;
   min-width: 200px;
-  z-index: 999999999 !important;
-  animation: fadeIn 0.15s ease;
   border: 1px solid #e8ecf0;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: block !important;
-  color: #333333 !important;
-  pointer-events: auto !important;
-  overflow: visible !important;
+}
+
+.weather-tooltip-content .tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
+
+.weather-tooltip-content .tooltip-icon {
+  font-size: 24px;
+}
+
+.weather-tooltip-content .tooltip-city {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.weather-tooltip-content .tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weather-tooltip-content .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weather-tooltip-content .tooltip-label {
+  font-size: 13px;
+  color: #718096;
+}
+
+.weather-tooltip-content .tooltip-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2d3748;
 }
 
 @keyframes fadeIn {

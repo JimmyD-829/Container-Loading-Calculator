@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Tooltip } from 'antd';
 
 interface WeatherData {
   city: string;
@@ -14,10 +15,6 @@ interface WeatherData {
 const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const [tooltipX, setTooltipX] = useState(0);
-  const [tooltipY, setTooltipY] = useState(0);
-  const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchWeather = async (latitude: number, longitude: number) => {
@@ -116,80 +113,63 @@ const WeatherWidget: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="weather-widget" ref={widgetRef}>
+      <div className="weather-widget">
         <span className="weather-icon">🌡️</span>
         <span className="weather-text">加载中...</span>
       </div>
     );
   }
 
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    setIsHovered(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipX(rect.left - 80);
-    setTooltipY(rect.bottom + 8);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltipX(e.clientX - 90);
-    setTooltipY(e.clientY + 15);
-  };
+  const tooltipContent = (
+    <div className="weather-tooltip-content">
+      <div className="tooltip-header">
+        <span className="tooltip-icon">{weather?.icon}</span>
+        <span className="tooltip-city">{weather?.city}</span>
+      </div>
+      <div className="tooltip-body">
+        <div className="tooltip-row">
+          <span className="tooltip-label">温度</span>
+          <span className="tooltip-value">{weather?.temperature}°C</span>
+        </div>
+        <div className="tooltip-row">
+          <span className="tooltip-label">体感温度</span>
+          <span className="tooltip-value">{weather?.feelsLike}°C</span>
+        </div>
+        <div className="tooltip-row">
+          <span className="tooltip-label">天气</span>
+          <span className="tooltip-value">{weather?.description}</span>
+        </div>
+        <div className="tooltip-row">
+          <span className="tooltip-label">湿度</span>
+          <span className="tooltip-value">{weather?.humidity}%</span>
+        </div>
+        <div className="tooltip-row">
+          <span className="tooltip-label">风速</span>
+          <span className="tooltip-value">{weather?.windSpeed} km/h</span>
+        </div>
+        <div className="tooltip-row">
+          <span className="tooltip-label">气压</span>
+          <span className="tooltip-value">{weather?.pressure} hPa</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div
-      className="weather-widget"
-      ref={widgetRef}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setIsHovered(false)}
-      onMouseMove={handleMouseMove}
+    <Tooltip 
+      title={tooltipContent} 
+      placement="bottomRight"
+      mouseEnterDelay={0}
+      mouseLeaveDelay={0}
+      overlayClassName="weather-tooltip-wrapper"
     >
-      <span className="weather-icon">{weather?.icon}</span>
-      <span className="weather-text">
-        {weather?.city} {weather?.temperature}°C {weather?.description}
-      </span>
-      
-      {isHovered && (
-        <div 
-          className="weather-tooltip"
-          style={{
-            left: `${tooltipX}px`,
-            top: `${tooltipY}px`,
-          }}
-        >
-          <div className="tooltip-header">
-            <span className="tooltip-icon">{weather?.icon}</span>
-            <span className="tooltip-city">{weather?.city}</span>
-          </div>
-          <div className="tooltip-body">
-            <div className="tooltip-row">
-              <span className="tooltip-label">温度</span>
-              <span className="tooltip-value">{weather?.temperature}°C</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">体感温度</span>
-              <span className="tooltip-value">{weather?.feelsLike}°C</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">天气</span>
-              <span className="tooltip-value">{weather?.description}</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">湿度</span>
-              <span className="tooltip-value">{weather?.humidity}%</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">风速</span>
-              <span className="tooltip-value">{weather?.windSpeed} km/h</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">气压</span>
-              <span className="tooltip-value">{weather?.pressure} hPa</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <div className="weather-widget">
+        <span className="weather-icon">{weather?.icon}</span>
+        <span className="weather-text">
+          {weather?.city} {weather?.temperature}°C {weather?.description}
+        </span>
+      </div>
+    </Tooltip>
   );
 };
 
