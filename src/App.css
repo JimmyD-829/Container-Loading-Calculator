@@ -791,6 +791,33 @@
     padding: 5px 10px;
   }
 
+  .ant-statistic {
+    padding: 8px !important;
+  }
+
+  .ant-statistic-title {
+    font-size: 10px !important;
+    color: #666 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .ant-statistic-content {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+  }
+
+  .ant-statistic-content-value {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+  }
+
+  .ant-statistic-content-suffix {
+    font-size: 10px !important;
+    color: #666 !important;
+  }
+
   .weather-icon {
     font-size: 18px;
   }
