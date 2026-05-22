@@ -307,22 +307,21 @@
 }
 
 .weather-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
   background: #fff !important;
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   padding: 14px;
   min-width: 180px;
-  z-index: 999999 !important;
+  z-index: 9999999 !important;
   animation: fadeIn 0.15s ease;
   border: 1px solid #e8ecf0;
   opacity: 1 !important;
   visibility: visible !important;
   display: block !important;
   color: #333 !important;
-  margin-top: 8px;
 }
 
 @keyframes fadeIn {

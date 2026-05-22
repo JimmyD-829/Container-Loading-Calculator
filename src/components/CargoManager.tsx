@@ -277,18 +277,18 @@ const CargoManager: React.FC<CargoManagerProps> = ({
   const columns = [
     {
       title: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
           <Checkbox
             indeterminate={selectedCargoIds.length > 0 && selectedCargoIds.length < cargoList.length}
             checked={selectedCargoIds.length === cargoList.length && cargoList.length > 0}
             onChange={(e) => handleSelectAll(e.target.checked)}
           />
-          <span>选择</span>
+          <span style={{ fontSize: '13px' }}>选择</span>
         </div>
       ),
       dataIndex: 'id',
       key: 'id',
-      width: 80,
+      width: 70,
       render: (id: string) => (
         <Checkbox
           checked={selectedCargoIds.includes(id)}

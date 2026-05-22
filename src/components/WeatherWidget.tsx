@@ -15,6 +15,8 @@ const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipX, setTooltipX] = useState(0);
+  const [tooltipY, setTooltipY] = useState(0);
   const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,12 +123,26 @@ const WeatherWidget: React.FC = () => {
     );
   }
 
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    setIsHovered(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipX(rect.left - 80);
+    setTooltipY(rect.bottom + 8);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipX(e.clientX - 90);
+    setTooltipY(e.clientY + 15);
+  };
+
   return (
     <div
       className="weather-widget"
       ref={widgetRef}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setIsHovered(false)}
+      onMouseMove={handleMouseMove}
     >
       <span className="weather-icon">{weather?.icon}</span>
       <span className="weather-text">
@@ -134,7 +150,13 @@ const WeatherWidget: React.FC = () => {
       </span>
       
       {isHovered && (
-        <div className="weather-tooltip">
+        <div 
+          className="weather-tooltip"
+          style={{
+            left: `${tooltipX}px`,
+            top: `${tooltipY}px`,
+          }}
+        >
           <div className="tooltip-header">
             <span className="tooltip-icon">{weather?.icon}</span>
             <span className="tooltip-city">{weather?.city}</span>
