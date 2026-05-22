@@ -16,6 +16,9 @@ import {
   RestOutlined,
   CheckCircleOutlined,
   WarningOutlined,
+  PlayCircleOutlined,
+  UpCircleOutlined,
+  DownCircleOutlined,
 } from '@ant-design/icons';
 import { calculateCenterOfGravity, validateCenterOfGravity, DEFAULT_COG_CONFIG, ConstraintViolation } from '../algorithms/constraintSolver';
 import { ContainerSpec, PlacedCargo } from '../types';
@@ -346,6 +349,10 @@ const Container3D: React.FC<Container3DProps> = ({
   const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
   const [constraintViolations, setConstraintViolations] = useState<ConstraintViolation[]>([]);
   const [constraintWarnings, setConstraintWarnings] = useState<ConstraintViolation[]>([]);
+  const [currentLayer, setCurrentLayer] = useState<number>(-1);
+  const [totalLayers, setTotalLayers] = useState<number>(1);
+  const [animateLoading, setAnimateLoading] = useState(false);
+  const [animatedBoxIds, setAnimatedBoxIds] = useState<string[]>([]);
   
   useEffect(() => {
     const updateHeight = () => {
@@ -375,6 +382,32 @@ const Container3D: React.FC<Container3DProps> = ({
   }, [placedCargos, containerSpec]);
   
   useEffect(() => {
+    if (cargoBoxes.length > 0) {
+      const layers = new Set(cargoBoxes.map(box => Math.floor(box.position[1] * 2)));
+      setTotalLayers(Math.max(layers.size, 1));
+    } else {
+      setTotalLayers(1);
+    }
+  }, [cargoBoxes]);
+  
+  useEffect(() => {
+    if (animateLoading && cargoBoxes.length > 0) {
+      setAnimatedBoxIds([]);
+      let index = 0;
+      const interval = setInterval(() => {
+        if (index < cargoBoxes.length) {
+          setAnimatedBoxIds(prev => [...prev, cargoBoxes[index].id]);
+          index++;
+        } else {
+          clearInterval(interval);
+          setAnimateLoading(false);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [animateLoading, cargoBoxes]);
+  
+  useEffect(() => {
     if (multiContainerData.length > 1) {
       setViewMode('multi');
     }
@@ -401,6 +434,23 @@ const Container3D: React.FC<Container3DProps> = ({
   const warningBoxIds = constraintWarnings.map(v => v.cargoId).filter(Boolean) as string[];
   
   const selectedBox = cargoBoxes.find(box => box.id === selectedBoxId);
+  
+  const filteredCargoBoxes = useMemo(() => {
+    if (currentLayer === -1) {
+      return cargoBoxes;
+    }
+    return cargoBoxes.filter(box => {
+      const boxLayer = Math.floor(box.position[1] * 2);
+      return boxLayer === currentLayer;
+    });
+  }, [cargoBoxes, currentLayer]);
+  
+  const visibleCargoBoxes = useMemo(() => {
+    if (!animateLoading) {
+      return filteredCargoBoxes;
+    }
+    return filteredCargoBoxes.filter(box => animatedBoxIds.includes(box.id));
+  }, [filteredCargoBoxes, animateLoading, animatedBoxIds]);
   
   const handleResetView = () => {
     setSelectedBoxId(null);
@@ -459,7 +509,7 @@ const Container3D: React.FC<Container3DProps> = ({
               <Container3DScene
                 key={index}
                 containerDimensions={data.containerDimensions}
-                cargoBoxes={data.cargoBoxes}
+                cargoBoxes={animateLoading ? data.cargoBoxes.filter(box => animatedBoxIds.includes(box.id)) : data.cargoBoxes}
                 centerOfGravity={data.centerOfGravity}
                 isCogValid={data.isCogValid}
                 selectedBoxId={selectedBoxId}
@@ -478,7 +528,7 @@ const Container3D: React.FC<Container3DProps> = ({
           ) : (
             <Container3DScene
               containerDimensions={containerDimensions}
-              cargoBoxes={cargoBoxes}
+              cargoBoxes={visibleCargoBoxes}
               centerOfGravity={centerOfGravity}
               isCogValid={isCogValid}
               selectedBoxId={selectedBoxId}
@@ -589,9 +639,48 @@ const Container3D: React.FC<Container3DProps> = ({
           <Tooltip title={autoRotate ? '停止旋转' : '自动旋转'}>
             <Button icon={autoRotate ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={() => setAutoRotate(!autoRotate)} size="small" type={autoRotate ? 'primary' : 'default'} />
           </Tooltip>
+          
+          <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+          
+          <Tooltip title="播放装柜动画">
+            <Button 
+              icon={<PlayCircleOutlined />} 
+              onClick={() => setAnimateLoading(true)} 
+              size="small" 
+              type={animateLoading ? 'primary' : 'default'}
+              disabled={animateLoading}
+            />
+          </Tooltip>
         </div>
         
         <div className="container3d-controls-right" style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#718096' }}>分层</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Button 
+                icon={<UpCircleOutlined />} 
+                size="small" 
+                onClick={() => setCurrentLayer(prev => prev < totalLayers - 1 ? prev + 1 : prev)}
+                disabled={currentLayer >= totalLayers - 1}
+              />
+              <span style={{ 
+                fontSize: '12px', 
+                fontWeight: '500', 
+                color: currentLayer === -1 ? '#718096' : '#2d3748',
+                minWidth: '60px',
+                textAlign: 'center'
+              }}>
+                {currentLayer === -1 ? '全部' : `第 ${currentLayer + 1} 层`}
+              </span>
+              <Button 
+                icon={<DownCircleOutlined />} 
+                size="small" 
+                onClick={() => setCurrentLayer(prev => prev > 0 ? prev - 1 : -1)}
+                disabled={currentLayer <= 0}
+              />
+            </div>
+          </div>
+          
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: '#718096' }}>网格</span>
             <Button type={showGrid ? 'primary' : 'default'} size="small" onClick={() => setShowGrid(!showGrid)}>
