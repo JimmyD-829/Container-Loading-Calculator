@@ -278,49 +278,52 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  border-radius: 25px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+  color: #333;
+  border-radius: 30px;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 12px rgba(0, 113, 194, 0.15);
+  border: 1px solid rgba(0, 113, 194, 0.1);
 }
 
 .weather-widget:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 113, 194, 0.25);
+  background: linear-gradient(135deg, #ffffff 0%, #e6f0fa 100%);
 }
 
 .weather-icon {
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .weather-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .weather-tooltip {
   position: absolute;
-  top: calc(100% + 12px);
+  bottom: calc(100% + 12px);
   right: 0;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  padding: 16px;
-  min-width: 220px;
+  padding: 18px;
+  min-width: 240px;
   z-index: 1000;
   animation: fadeIn 0.2s ease;
+  border: 1px solid #e8ecf0;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -331,11 +334,11 @@
 .weather-tooltip::before {
   content: '';
   position: absolute;
-  top: -8px;
+  bottom: -8px;
   right: 20px;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 8px solid #fff;
+  border-top: 8px solid #fff;
 }
 
 .tooltip-header {
