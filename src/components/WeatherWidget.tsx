@@ -57,8 +57,23 @@ const WeatherWidget: React.FC = () => {
         const weatherCode = data.current.weather_code;
         const weatherInfo = weatherCodeMap[weatherCode] || { description: '未知', icon: '❓' };
 
+        const cityName = data.timezone.split('/').pop() || '未知地点';
+        const cityNameCN: Record<string, string> = {
+          'Shanghai': '上海',
+          'Beijing': '北京',
+          'Guangzhou': '广州',
+          'Shenzhen': '深圳',
+          'Hangzhou': '杭州',
+          'Chengdu': '成都',
+          'Wuhan': '武汉',
+          'Nanjing': '南京',
+          'Xiamen': '厦门',
+          'Hong_Kong': '香港',
+          'Taipei': '台北',
+        };
+        
         setWeather({
-          city: data.timezone.split('/').pop() || '未知地点',
+          city: cityNameCN[cityName] || cityName,
           temperature: Math.round(data.current.temperature_2m),
           description: weatherInfo.description,
           icon: weatherInfo.icon,
