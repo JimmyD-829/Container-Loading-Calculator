@@ -392,7 +392,6 @@ const Container3D: React.FC<Container3DProps> = ({
   
   useEffect(() => {
     if (animateLoading) {
-      setAnimatedBoxIds([]);
       const allBoxes = multiContainerData.length > 0 
         ? multiContainerData.flatMap(data => data.cargoBoxes)
         : cargoBoxes;
@@ -402,18 +401,20 @@ const Container3D: React.FC<Container3DProps> = ({
         return;
       }
       
+      setAnimatedBoxIds([]);
+      
       let currentIndex = 0;
-      const animateBox = () => {
+      const interval = setInterval(() => {
         if (currentIndex < allBoxes.length) {
           setAnimatedBoxIds(prev => [...prev, allBoxes[currentIndex].id]);
           currentIndex++;
-          requestAnimationFrame(animateBox);
         } else {
+          clearInterval(interval);
           setAnimateLoading(false);
         }
-      };
+      }, 100);
       
-      requestAnimationFrame(animateBox);
+      return () => clearInterval(interval);
     }
   }, [animateLoading, cargoBoxes, multiContainerData]);
   
