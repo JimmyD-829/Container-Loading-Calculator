@@ -134,6 +134,13 @@
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  gap: 20px;
+}
+
+.header-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .main-header h1 {
@@ -541,13 +548,15 @@
     flex-direction: column;
     height: auto;
     min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .sidebar {
     width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
-    padding: 10px 15px;
+    padding: 8px 12px;
     align-items: center;
     justify-content: space-between;
     position: sticky;
@@ -558,8 +567,12 @@
 
   .sidebar-header {
     border-bottom: none;
-    padding: 10px 15px;
+    padding: 6px 10px;
     background: transparent;
+  }
+
+  .sidebar-icon {
+    font-size: 24px;
   }
 
   .sidebar-title {
@@ -570,11 +583,11 @@
     padding: 0;
     flex: none;
     display: flex;
-    gap: 5px;
+    gap: 4px;
     flex-wrap: wrap;
     order: 3;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   .nav-label {
@@ -582,15 +595,20 @@
   }
 
   .nav-btn {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
     margin-bottom: 0;
     min-width: auto;
     flex: none;
+    border-radius: 4px;
   }
 
   .nav-icon {
-    font-size: 14px;
+    font-size: 13px;
+  }
+
+  .nav-text {
+    font-weight: 400;
   }
 
   .sidebar-footer {
@@ -600,109 +618,229 @@
   }
 
   .calc-button {
-    padding: 10px 20px;
-    font-size: 13px;
-    margin-left: 15px;
+    padding: 8px 16px;
+    font-size: 12px;
+    margin-left: 10px;
+    border-radius: 4px;
   }
 
   .main-content {
     flex: 1;
-    min-height: calc(100vh - 120px);
+    min-height: calc(100vh - 140px);
+    width: 100%;
   }
 
   .main-header {
-    padding: 12px 15px;
+    padding: 10px 12px;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
     text-align: center;
   }
 
+  .header-title-section {
+    align-items: center;
+  }
+
   .main-header h1 {
-    font-size: 17px;
+    font-size: 16px;
+    margin: 0;
   }
 
   .main-subtitle {
-    font-size: 12px;
+    font-size: 11px;
+    margin: 0;
   }
 
-  .content-area {
-    padding: 15px;
+  .weather-widget {
+    padding: 6px 12px;
+    font-size: 11px;
+    border-radius: 20px;
   }
 
-  .news-marquee-container {
-    padding: 8px 12px;
-    overflow: hidden;
+  .weather-icon {
+    font-size: 20px;
   }
 
-  .marquee-label {
-    padding: 3px 10px;
-  }
-
-  .label-text {
-    font-size: 12px;
-  }
-
-  .marquee-item {
-    font-size: 12px;
-    padding: 0 15px;
-  }
-
-  .news-source {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar {
-    padding: 8px 10px;
-  }
-
-  .sidebar-header {
-    padding: 8px 10px;
-  }
-
-  .sidebar-icon {
-    font-size: 22px;
-  }
-
-  .sidebar-title {
-    font-size: 13px;
-  }
-
-  .nav-btn {
-    padding: 6px 10px;
+  .weather-text {
     font-size: 11px;
   }
 
-  .calc-button {
-    padding: 8px 15px;
-    font-size: 12px;
-    margin-left: 10px;
-  }
-
-  .main-header h1 {
-    font-size: 15px;
+  .weather-tooltip {
+    display: none;
   }
 
   .content-area {
-    padding: 10px;
+    padding: 12px;
   }
 
   .news-marquee-container {
     padding: 6px 10px;
+    overflow: hidden;
   }
 
   .marquee-label {
     padding: 2px 8px;
   }
 
+  .label-icon {
+    font-size: 12px;
+  }
+
   .label-text {
     font-size: 11px;
+  }
+
+  .update-time {
+    font-size: 10px;
+    display: none;
   }
 
   .marquee-item {
     font-size: 11px;
     padding: 0 10px;
+  }
+
+  .news-bullet {
+    font-size: 8px;
+  }
+
+  .news-title {
+    font-weight: 400;
+  }
+
+  .news-source {
+    display: none;
+  }
+
+  .news-divider {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 6px 8px;
+  }
+
+  .sidebar-header {
+    padding: 4px 8px;
+  }
+
+  .sidebar-icon {
+    font-size: 20px;
+  }
+
+  .sidebar-title {
+    font-size: 12px;
+  }
+
+  .nav-btn {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .nav-icon {
+    font-size: 12px;
+  }
+
+  .calc-button {
+    padding: 6px 12px;
+    font-size: 11px;
+    margin-left: 8px;
+  }
+
+  .main-header {
+    padding: 8px 10px;
+  }
+
+  .main-header h1 {
+    font-size: 14px;
+  }
+
+  .main-subtitle {
+    font-size: 10px;
+  }
+
+  .content-area {
+    padding: 8px;
+  }
+
+  .news-marquee-container {
+    padding: 4px 8px;
+  }
+
+  .marquee-label {
+    padding: 2px 6px;
+  }
+
+  .label-text {
+    font-size: 10px;
+  }
+
+  .marquee-item {
+    font-size: 10px;
+    padding: 0 8px;
+  }
+
+  .weather-widget {
+    padding: 5px 10px;
+  }
+
+  .weather-icon {
+    font-size: 18px;
+  }
+
+  .weather-text {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 393px) {
+  .sidebar {
+    padding: 5px 6px;
+  }
+
+  .sidebar-icon {
+    font-size: 18px;
+  }
+
+  .sidebar-title {
+    font-size: 11px;
+  }
+
+  .nav-btn {
+    padding: 4px 6px;
+    font-size: 9px;
+  }
+
+  .nav-icon {
+    font-size: 11px;
+  }
+
+  .calc-button {
+    padding: 5px 10px;
+    font-size: 10px;
+    margin-left: 6px;
+  }
+
+  .main-header h1 {
+    font-size: 13px;
+  }
+
+  .main-subtitle {
+    font-size: 9px;
+  }
+
+  .weather-widget {
+    padding: 4px 8px;
+  }
+
+  .weather-icon {
+    font-size: 16px;
+  }
+
+  .weather-text {
+    font-size: 9px;
   }
 }
 

@@ -14,6 +14,7 @@ import CalculationConfig, { CalculationConfig as ConfigType } from './components
 import ResultViewer, { LoadingResult, LoadedCargo } from './components/ResultViewer';
 import Container3D, { CargoBox, ContainerDimensions, MultiContainerData } from './components/Container3D';
 import NewsMarquee from './components/NewsMarquee';
+import WeatherWidget from './components/WeatherWidget';
 import { ffdPacking } from './algorithms/ffd';
 import { Cargo, ContainerSpec, PackingResult, CargoType } from './types';
 import { CONTAINER_40HQ, STANDARD_CONTAINERS, createCustomContainerSpec } from './data/containers';
@@ -551,8 +552,11 @@ const App: React.FC = () => {
         <main className="main-content">
           <NewsMarquee />
           <header className="main-header">
-            <h1>{navItems[currentStep]?.title || '货物管理'}</h1>
-            <span className="main-subtitle">智能 3D 装载规划与可视化系统</span>
+            <div className="header-title-section">
+              <h1>{navItems[currentStep]?.title || '货物管理'}</h1>
+              <span className="main-subtitle">智能 3D 装载规划与可视化系统</span>
+            </div>
+            <WeatherWidget />
           </header>
           
           <div className="content-area">

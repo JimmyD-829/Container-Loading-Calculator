@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import WeatherWidget from './WeatherWidget';
 
 interface NewsItem {
   id: number;
@@ -116,7 +115,6 @@ const NewsMarquee: React.FC = () => {
           ))}
         </div>
       </div>
-      <WeatherWidget />
     </div>
   );
 };
