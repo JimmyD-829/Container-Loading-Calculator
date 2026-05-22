@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface WeatherData {
   city: string;
@@ -14,9 +14,8 @@ interface WeatherData {
 const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchWeather = async (latitude: number, longitude: number) => {
@@ -85,7 +84,6 @@ const WeatherWidget: React.FC = () => {
         });
         setIsLoading(false);
       } catch (err) {
-        setError('获取天气失败，显示默认天气');
         setWeather({
           city: '上海',
           temperature: 25,
@@ -116,26 +114,19 @@ const WeatherWidget: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="weather-widget">
+      <div className="weather-widget" ref={widgetRef}>
         <span className="weather-icon">🌡️</span>
         <span className="weather-text">加载中...</span>
       </div>
     );
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    setTooltipPosition({
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
-
   return (
     <div
       className="weather-widget"
+      ref={widgetRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onMouseMove={handleMouseMove}
     >
       <span className="weather-icon">{weather?.icon}</span>
       <span className="weather-text">
@@ -143,15 +134,7 @@ const WeatherWidget: React.FC = () => {
       </span>
       
       {isHovered && (
-        <div 
-          className="weather-tooltip"
-          style={{
-            left: tooltipPosition.x - 90,
-            top: tooltipPosition.y + 20,
-            position: 'fixed',
-            zIndex: 999999,
-          }}
-        >
+        <div className="weather-tooltip">
           <div className="tooltip-header">
             <span className="tooltip-icon">{weather?.icon}</span>
             <span className="tooltip-city">{weather?.city}</span>
