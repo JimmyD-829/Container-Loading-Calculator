@@ -42,7 +42,9 @@ import {
   FileExcelOutlined,
   FileTextOutlined as FileTextIcon,
   CodeOutlined,
+  FileImageOutlined,
 } from '@ant-design/icons';
+import { generateLoadingReport } from '../utils/pdfExport';
 import type { CargoItem } from './CargoManager';
 import type { ContainerType } from './ContainerSelector';
 
@@ -100,18 +102,27 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedContainer, setSelectedContainer] = useState(0);
   const [exportModalVisible, setExportModalVisible] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'json' | 'txt'>('excel');
+  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'json' | 'txt' | 'pdf'>('pdf');
 
   const handleExport = () => {
     setExportModalVisible(true);
   };
 
-  const handleConfirmExport = () => {
+  const handleConfirmExport = async () => {
     if (!result) return;
     
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     
     switch (exportFormat) {
+      case 'pdf':
+        try {
+          await generateLoadingReport({ result });
+          setExportModalVisible(false);
+          message.success('PDF导出成功');
+        } catch (error) {
+          message.error('PDF导出失败');
+        }
+        return;
       case 'excel':
         exportToExcel(result, timestamp);
         break;
@@ -900,6 +911,12 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
                 onChange={(value) => setExportFormat(value as any)}
                 style={{ width: '100%', marginTop: 8 }}
               >
+                <Option value="pdf">
+                  <Space>
+                    <FileImageOutlined />
+                    PDF (含3D截图+装卸指导)
+                  </Space>
+                </Option>
                 <Option value="excel">
                   <Space>
                     <FileExcelOutlined />
