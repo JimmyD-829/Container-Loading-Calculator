@@ -543,7 +543,27 @@ const App: React.FC = () => {
           </div>
 
           <nav className="sidebar-nav">
-            {!collapsed && <div className="nav-label">功能模块</div>}
+            {!collapsed && (
+              <div className="nav-label-container">
+                <span className="nav-label">功能模块</span>
+                <button
+                  className="collapse-btn-inline"
+                  onClick={() => setCollapsed(!collapsed)}
+                  title="收起导航"
+                >
+                  <MenuFoldOutlined />
+                </button>
+              </div>
+            )}
+            {collapsed && (
+              <button
+                className="collapse-btn-inline"
+                onClick={() => setCollapsed(false)}
+                title="展开导航"
+              >
+                <MenuUnfoldOutlined />
+              </button>
+            )}
             {navItems.map((item) => (
               <button
                 key={item.key}
@@ -575,14 +595,6 @@ const App: React.FC = () => {
               </button>
             </div>
           )}
-
-          <button
-            className="collapse-btn"
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? '展开导航' : '收起导航'}
-          >
-            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          </button>
         </aside>
 
         <main className="main-content">
