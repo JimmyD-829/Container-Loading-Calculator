@@ -200,9 +200,9 @@ const SolutionList: React.FC<SolutionListProps> = ({ onSelect }) => {
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 280,
       render: (_, record: Solution) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Tooltip title="查看">
             <Button
               size="small"

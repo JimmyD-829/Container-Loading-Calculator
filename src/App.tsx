@@ -28,7 +28,8 @@ import SolutionComparison from './components/SolutionComparison';
 import CargoTemplateManager from './components/CargoTemplateManager';
 import LoadingGuide from './components/LoadingGuide';
 import { ffdPacking } from './algorithms/ffd';
-import { Cargo, ContainerSpec, PackingResult, CargoType } from './types';
+import { solutionStorage } from './utils/solutionStorage';
+import { Cargo, ContainerSpec, PackingResult, CargoType, Solution } from './types';
 import { CONTAINER_40HQ, STANDARD_CONTAINERS, createCustomContainerSpec } from './data/containers';
 import './App.css';
 
@@ -307,7 +308,7 @@ const App: React.FC = () => {
   const [selectedContainer, setSelectedContainer] = useState<SelectorContainerType | null>(DEFAULT_CONTAINERS[2]);
   const [customContainers, setCustomContainers] = useState<SelectorContainerType[]>([]);
   const [calculationConfig, setCalculationConfig] = useState<ConfigType>({
-    algorithm: 'greedy',
+    algorithm: 'FFD',
     allowRotation: true,
     prioritizeWeight: false,
     stackingLimit: 3,
@@ -315,12 +316,26 @@ const App: React.FC = () => {
     maxCalculationTime: 30,
     considerFragile: true,
     balanceWeight: true,
+    gaPopulationSize: 50,
+    gaGenerations: 100,
+    gaMutationRate: 0.1,
+    gaCrossoverRate: 0.8,
+    saInitialTemp: 100,
+    saCoolingRate: 0.95,
+    saIterations: 100,
+    multiObjectiveWeights: {
+      volume: 0.4,
+      weight: 0.2,
+      stability: 0.2,
+      balance: 0.2,
+    },
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [loadingResult, setLoadingResult] = useState<LoadingResult | null>(null);
   const [show3DView, setShow3DView] = useState(true);
   const [selected3DContainerIndex, setSelected3DContainerIndex] = useState(0);
   const [selectedCargoIds, setSelectedCargoIds] = useState<string[]>([]);
+  const [solutions, setSolutions] = useState<Solution[]>([]);
 
   const handleCalculate = useCallback(async () => {
     if (!selectedContainer) {
@@ -500,7 +515,7 @@ const App: React.FC = () => {
       case 5:
         return <SolutionList />;
       case 6:
-        return <SolutionComparison />;
+        return <SolutionComparison solutions={solutions} />;
       case 7:
         return <CargoTemplateManager />;
       case 8:
