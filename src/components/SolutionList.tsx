@@ -304,29 +304,32 @@ const SolutionList: React.FC<SolutionListProps> = ({ onSelect }) => {
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={solutions}
-        rowKey="id"
-        pagination={{
-          current: pagination.page,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          onChange: handlePageChange,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条记录`,
-        }}
-        loading={loading}
-        locale={{
-          emptyText: (
-            <Empty
-              description="暂无方案"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ),
-        }}
-      />
+      <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+        <Table
+          columns={columns}
+          dataSource={solutions}
+          rowKey="id"
+          pagination={{
+            current: pagination.page,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            onChange: handlePageChange,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+          }}
+          loading={loading}
+          locale={{
+            emptyText: (
+              <Empty
+                description="暂无方案"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ),
+          }}
+          scroll={{ x: 'max-content' }}
+        />
+      </div>
     </Card>
   );
 };
