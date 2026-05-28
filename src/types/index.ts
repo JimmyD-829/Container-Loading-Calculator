@@ -241,11 +241,14 @@ export interface ContainerSelectionState {
  * 计算设置
  */
 export interface CalculationSettings {
-  algorithm: 'FFD' | 'BF' | 'GA';
+  algorithm: AlgorithmType | 'FFD' | 'GA' | 'SA' | 'BF' | 'MultiObjective';
   allowRotation: boolean;
   prioritizeWeight: boolean;
   maxIterations: number;
   timeLimit: number; // 秒
+  gaSettings?: GASettings;
+  saSettings?: SASettings;
+  multiObjectiveSettings?: MultiObjectiveSettings;
 }
 
 /**
@@ -490,4 +493,123 @@ export interface AppError {
   message: string;
   details?: unknown;
   timestamp: Date;
+}
+
+// ==================== 算法类型定义 ====================
+
+/**
+ * 算法类型枚举
+ */
+export enum AlgorithmType {
+  FFD = 'FFD',       // First Fit Decreasing
+  GA = 'GA',         // Genetic Algorithm
+  SA = 'SA',         // Simulated Annealing
+  BF = 'BF',         // Brute Force
+  MultiObjective = 'MultiObjective' // 多目标优化
+}
+
+/**
+ * 货物放置方向
+ */
+export type Orientation = 'front' | 'back' | 'left' | 'right';
+
+/**
+ * 遗传算法设置
+ */
+export interface GASettings {
+  populationSize: number;
+  generations: number;
+  mutationRate: number;
+  crossoverRate: number;
+  eliteCount: number;
+  tournamentSize: number;
+  elitism: number;
+  allowRotation: boolean;
+  timeLimit: number;
+}
+
+/**
+ * 模拟退火算法设置
+ */
+export interface SASettings {
+  initialTemperature: number;
+  coolingRate: number;
+  iterationsPerTemp: number;
+  minTemperature: number;
+  allowRotation: boolean;
+  timeLimit: number;
+}
+
+/**
+ * 多目标优化设置
+ */
+export interface MultiObjectiveSettings {
+  weights: {
+    volume: number;
+    weight: number;
+    stability: number;
+    centerOfGravity: number;
+    utilization: number;
+    balance: number;
+    stacking: number;
+    loading: number;
+  };
+  constraints: {
+    maxContainerCount: number;
+    minUtilization: number;
+    maxWeightRatio: number;
+  };
+  algorithm: 'NSGAII' | 'MOEAD' | 'WeightedSum';
+}
+
+/**
+ * 集装箱容量计算输入
+ */
+export interface ContainerCapacityInput {
+  container: ContainerSpec;
+  cargoTypes: Array<{
+    name: string;
+    length: number;
+    width: number;
+    height: number;
+    weight: number;
+    quantity: number;
+  }>;
+  settings?: Partial<CalculationSettings>;
+  containerSpec?: ContainerSpec;
+  cargoDimensions?: Array<{ length: number; width: number; height: number }>;
+  allowRotation?: boolean;
+  considerWeight?: boolean;
+  cargoWeight?: number[];
+  maxStackLayers?: number;
+}
+
+/**
+ * 集装箱容量计算结果
+ */
+export interface ContainerCapacityResult {
+  feasible: boolean;
+  containerCount: number;
+  totalVolume: number;
+  volumeUtilization: number;
+  totalWeight: number;
+  weightUtilization: number;
+  estimatedCost: number;
+  suggestions: string[];
+  warnings: string[];
+  totalQuantity?: number;
+  layoutOptions?: Array<{
+    containerIndex: number;
+    layout: Array<{
+      cargoIndex: number;
+      x: number;
+      y: number;
+      z: number;
+      rotation: string;
+    }>;
+  }>;
+  remainingSpace?: Array<{
+    containerIndex: number;
+    space: Space[];
+  }>;
 }

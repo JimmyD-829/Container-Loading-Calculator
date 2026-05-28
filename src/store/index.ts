@@ -21,6 +21,12 @@ import {
   Priority,
   PackingResult,
   CalculationSettings,
+  GASettings,
+  SASettings,
+  MultiObjectiveSettings,
+  AlgorithmType,
+  Solution,
+  SolutionStatus,
   ImportConfig,
   ExportConfig,
   RenderConfig
@@ -35,6 +41,10 @@ import {
 } from '../data/containers';
 
 import { ffdPacking, FFDOptions } from '../algorithms/ffd';
+import { gaPacking } from '../algorithms/ga';
+import { saPacking } from '../algorithms/sa';
+import { multiObjectivePacking, DEFAULT_MULTI_OBJECTIVE_CONFIG } from '../algorithms/multiObjective';
+import { solutionStorage } from '../utils/solutionStorage';
 
 // ==================== 状态类型定义 ====================
 
@@ -66,6 +76,9 @@ interface AppStore {
   
   // ========== 3D渲染设置 ==========
   renderConfig: RenderConfig;
+  
+  // ========== 方案管理 ==========
+  solutions: Solution[];
   
   // ========== 货物管理操作 ==========
   addCargo: (cargo: Omit<Cargo, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -110,6 +123,11 @@ interface AppStore {
   updateRenderConfig: (config: Partial<RenderConfig>) => void;
   resetRenderConfig: () => void;
   
+  // ========== 方案管理操作 ==========
+  saveAsSolution: (name: string, description?: string) => void;
+  loadSolution: (solutionId: string) => void;
+  deleteSolution: (solutionId: string) => void;
+  
   // ========== 工具函数 ==========
   getTotalCargoVolume: () => number;
   getTotalCargoWeight: () => number;
@@ -124,7 +142,33 @@ const DEFAULT_SETTINGS: CalculationSettings = {
   allowRotation: true,
   prioritizeWeight: false,
   maxIterations: 1000,
-  timeLimit: 60
+  timeLimit: 60,
+  gaSettings: {
+    populationSize: 50,
+    generations: 100,
+    crossoverRate: 0.8,
+    mutationRate: 0.1,
+    elitism: 5,
+    allowRotation: true,
+    timeLimit: 30,
+  },
+  saSettings: {
+    initialTemperature: 1000,
+    coolingRate: 0.95,
+    minTemperature: 1,
+    iterationsPerTemp: 50,
+    allowRotation: true,
+    timeLimit: 30,
+  },
+  multiObjectiveSettings: {
+    algorithm: 'GA',
+    weights: {
+      utilization: 0.4,
+      balance: 0.3,
+      stacking: 0.2,
+      loading: 0.1,
+    },
+  },
 };
 
 const DEFAULT_RENDER_CONFIG: RenderConfig = {
@@ -178,6 +222,7 @@ export const useAppStore = create<AppStore>()(
         isCalculating: false,
         calculationError: null,
         renderConfig: { ...DEFAULT_RENDER_CONFIG },
+        solutions: solutionStorage.getAllSolutions(),
 
         // ========== 货物管理操作 ==========
         addCargo: (cargo) => {
@@ -370,16 +415,55 @@ export const useAppStore = create<AppStore>()(
               throw new Error('没有选择集装箱');
             }
 
-            const options: FFDOptions = {
-              allowRotation: settings.allowRotation,
-              prioritizeWeight: settings.prioritizeWeight,
-              maxContainers: 100
-            };
-
-            // 使用 setTimeout 让 UI 有时间更新
             await new Promise((resolve) => setTimeout(resolve, 100));
 
-            const result = ffdPacking(cargos, containerSpecs, options);
+            let result: PackingResult;
+
+            switch (settings.algorithm) {
+              case 'GA': {
+                const gaOptions = {
+                  populationSize: settings.gaSettings.populationSize,
+                  generations: settings.gaSettings.generations,
+                  crossoverRate: settings.gaSettings.crossoverRate,
+                  mutationRate: settings.gaSettings.mutationRate,
+                  elitism: settings.gaSettings.elitism,
+                  allowRotation: settings.gaSettings.allowRotation,
+                  timeLimit: settings.gaSettings.timeLimit,
+                };
+                result = gaPacking(cargos, containerSpecs, gaOptions);
+                break;
+              }
+              case 'SA': {
+                const saOptions = {
+                  initialTemperature: settings.saSettings.initialTemperature,
+                  coolingRate: settings.saSettings.coolingRate,
+                  minTemperature: settings.saSettings.minTemperature,
+                  iterationsPerTemp: settings.saSettings.iterationsPerTemp,
+                  allowRotation: settings.saSettings.allowRotation,
+                  timeLimit: settings.saSettings.timeLimit,
+                };
+                result = saPacking(cargos, containerSpecs, saOptions);
+                break;
+              }
+              case 'MultiObjective': {
+                const multiConfig = {
+                  ...DEFAULT_MULTI_OBJECTIVE_CONFIG,
+                  algorithm: settings.multiObjectiveSettings.algorithm,
+                  weights: settings.multiObjectiveSettings.weights,
+                };
+                result = multiObjectivePacking(cargos, containerSpecs, multiConfig);
+                break;
+              }
+              default: {
+                const options: FFDOptions = {
+                  allowRotation: settings.allowRotation,
+                  prioritizeWeight: settings.prioritizeWeight,
+                  maxContainers: 100
+                };
+                result = ffdPacking(cargos, containerSpecs, options);
+                break;
+              }
+            }
 
             set((state) => {
               state.result = result;
@@ -471,6 +555,52 @@ export const useAppStore = create<AppStore>()(
           });
         },
 
+        // ========== 方案管理操作 ==========
+        saveAsSolution: (name, description) => {
+          const { cargos, selectedContainers, settings, result } = get();
+          const cargoIds = cargos.map(c => c.id);
+          const containerSpecs = selectedContainers.flatMap(({ spec, quantity }) =>
+            Array.from({ length: quantity }, () => spec)
+          );
+
+          const solution = solutionStorage.createSolution(
+            name,
+            description || '',
+            cargoIds,
+            containerSpecs,
+            settings
+          );
+
+          if (result) {
+            solutionStorage.updateSolutionResult(solution.id, result);
+          }
+
+          set((state) => {
+            state.solutions = solutionStorage.getAllSolutions();
+          });
+        },
+
+        loadSolution: (solutionId) => {
+          const solution = solutionStorage.getSolutionById(solutionId);
+          if (!solution) return;
+
+          set((state) => {
+            state.settings = { ...solution.settings };
+            state.result = solution.result ? { ...solution.result } : null;
+            state.selectedContainers = solution.containerSpecs.map(spec => ({
+              spec,
+              quantity: 1,
+            }));
+          });
+        },
+
+        deleteSolution: (solutionId) => {
+          solutionStorage.deleteSolution(solutionId);
+          set((state) => {
+            state.solutions = solutionStorage.getAllSolutions();
+          });
+        },
+
         // ========== 工具函数 ==========
         getTotalCargoVolume: () => {
           const { cargos } = get();
@@ -533,7 +663,8 @@ export const useAppStore = create<AppStore>()(
           selectedContainers: state.selectedContainers,
           customContainers: state.customContainers,
           settings: state.settings,
-          renderConfig: state.renderConfig
+          renderConfig: state.renderConfig,
+          solutions: state.solutions
         })
       }
     )
@@ -550,6 +681,7 @@ export const useResult = () => useAppStore((state) => state.result);
 export const useIsCalculating = () => useAppStore((state) => state.isCalculating);
 export const useCalculationError = () => useAppStore((state) => state.calculationError);
 export const useRenderConfig = () => useAppStore((state) => state.renderConfig);
+export const useSolutions = () => useAppStore((state) => state.solutions);
 
 // ==================== 操作 Hooks ====================
 
@@ -597,6 +729,15 @@ export const useImportExportActions = () => {
     importCargos: store.importCargos,
     exportCargos: store.exportCargos,
     exportResult: store.exportResult
+  };
+};
+
+export const useSolutionActions = () => {
+  const store = useAppStore();
+  return {
+    saveAsSolution: store.saveAsSolution,
+    loadSolution: store.loadSolution,
+    deleteSolution: store.deleteSolution
   };
 };
 

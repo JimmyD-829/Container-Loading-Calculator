@@ -7,6 +7,11 @@ import {
   CalculatorOutlined,
   EyeOutlined,
   FileTextOutlined,
+  ColumnWidthOutlined,
+  FolderOutlined,
+  SwapOutlined,
+  AppstoreOutlined,
+  ReadOutlined,
 } from '@ant-design/icons';
 import CargoManager, { CargoItem } from './components/CargoManager';
 import ContainerSelector, { ContainerType as SelectorContainerType, DEFAULT_CONTAINERS } from './components/ContainerSelector';
@@ -268,6 +273,11 @@ const navItems = [
   { key: 1, title: '集装箱选择', icon: <ContainerOutlined /> },
   { key: 2, title: '计算配置', icon: <CalculatorOutlined /> },
   { key: 3, title: '查看结果', icon: <FileTextOutlined /> },
+  { key: 4, title: '容量测算', icon: <ColumnWidthOutlined /> },
+  { key: 5, title: '方案管理', icon: <FolderOutlined /> },
+  { key: 6, title: '方案对比', icon: <SwapOutlined /> },
+  { key: 7, title: '货物模板', icon: <AppstoreOutlined /> },
+  { key: 8, title: '装卸指导', icon: <ReadOutlined /> },
 ];
 
 const App: React.FC = () => {

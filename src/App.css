@@ -310,6 +310,20 @@
   z-index: 999999 !important;
 }
 
+.weather-tooltip-wrapper .ant-tooltip-arrow {
+  display: none !important;
+}
+
+.weather-tooltip-wrapper .ant-tooltip-inner {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.weather-tooltip-wrapper .ant-tooltip-arrow-content {
+  background: transparent !important;
+}
+
 .weather-tooltip-content {
   background: #ffffff;
   border-radius: 12px;
