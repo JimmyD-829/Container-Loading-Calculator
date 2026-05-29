@@ -47,6 +47,10 @@ import {
 import { generateLoadingReport } from '../utils/pdfExport';
 import type { CargoItem } from './CargoManager';
 import type { ContainerType } from './ContainerSelector';
+import { ExplainableAI } from './ExplainableAI';
+import { calculateMultiObjectiveScore, MultiObjectiveWeights, DEFAULT_WEIGHTS } from '../algorithms/multiObjective';
+import { calculateTotalEmission, EmissionResult } from '../algorithms/carbonEmission';
+import { ContainerSpec } from '../types';
 
 const { Option } = Select;
 
@@ -103,6 +107,68 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
   const [selectedContainer, setSelectedContainer] = useState(0);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'json' | 'txt' | 'pdf'>('pdf');
+
+  const calculateAIScores = () => {
+    if (!result) return { objectiveScores: null, emissionResult: null };
+
+    const weights: MultiObjectiveWeights = {
+      spaceUtilization: DEFAULT_WEIGHTS.spaceUtilization,
+      centerOfGravity: DEFAULT_WEIGHTS.centerOfGravity,
+      stackingStability: DEFAULT_WEIGHTS.stackingStability,
+      loadingCost: DEFAULT_WEIGHTS.loadingCost,
+      unloadingOrder: DEFAULT_WEIGHTS.unloadingOrder,
+    };
+
+    const allCargos = result.containers.flatMap(container =>
+      container.cargoList.map(cargo => ({
+        id: cargo.id,
+        name: cargo.name,
+        weight: cargo.weight,
+        length: cargo.length * 10,
+        width: cargo.width * 10,
+        position: {
+          x: cargo.position.x * 10,
+          y: cargo.position.y * 10,
+          z: cargo.position.z * 10,
+        },
+      }))
+    );
+
+    const firstContainer = result.containers[0]?.container;
+    const containerSpec: ContainerSpec = {
+      id: firstContainer?.id || 'default',
+      name: firstContainer?.name || '40HQ',
+      code: firstContainer?.code || '40HQ',
+      description: '',
+      innerDimensions: {
+        length: (firstContainer?.length || 1200) * 10,
+        width: (firstContainer?.width || 244) * 10,
+        height: (firstContainer?.height || 260) * 10,
+      },
+      volume: (firstContainer?.volume || 76.3),
+      tareWeight: firstContainer?.tareWeight || 3940,
+      maxPayload: firstContainer?.maxWeight || 26460,
+      maxGross: 30400,
+      isStandard: firstContainer?.isStandard || true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const objectiveScores = calculateMultiObjectiveScore(
+      allCargos,
+      containerSpec,
+      weights,
+      result.averageUtilization
+    );
+
+    const emissionResult: EmissionResult = calculateTotalEmission(
+      allCargos,
+      firstContainer?.code?.substring(0, 8) || '40HQ',
+      1000
+    );
+
+    return { objectiveScores, emissionResult };
+  };
 
   const handleExport = () => {
     setExportModalVisible(true);
@@ -834,6 +900,27 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
     );
   };
 
+  // 渲染AI决策解释
+  const renderExplainableAI = () => {
+    const { objectiveScores, emissionResult } = calculateAIScores();
+    
+    return (
+      <ExplainableAI
+        objectiveScores={objectiveScores}
+        weights={{
+          spaceUtilization: DEFAULT_WEIGHTS.spaceUtilization,
+          centerOfGravity: DEFAULT_WEIGHTS.centerOfGravity,
+          stackingStability: DEFAULT_WEIGHTS.stackingStability,
+          loadingCost: DEFAULT_WEIGHTS.loadingCost,
+          unloadingOrder: DEFAULT_WEIGHTS.unloadingOrder,
+        }}
+        emissionResult={emissionResult}
+        algorithmName={result?.algorithm || 'FFD'}
+        calculationTime={result?.calculationTime || 0}
+      />
+    );
+  };
+
     return (
       <>
         <Card
@@ -891,6 +978,17 @@ const ResultViewer: React.FC<ResultViewerProps> = ({
               key="cargo"
             >
               {renderCargoStats()}
+            </TabPane>
+            <TabPane
+              tab={
+                <Space>
+                  <CalculatorOutlined />
+                  AI决策解释
+                </Space>
+              }
+              key="explainable"
+            >
+              {renderExplainableAI()}
             </TabPane>
           </Tabs>
         </Card>

@@ -1,299 +1,245 @@
-/**
- * 多目标优化框架
- * 
- * 支持的优化目标：
- * 1. 空间利用率 - 最大化集装箱空间利用率
- * 2. 重心平衡 - 最小化重心偏移
- * 3. 装卸效率 - 考虑货物装卸顺序
- * 4. 堆叠稳定性 - 考虑堆叠层数和承托面积
- * 
- * 权重配置：用户可自定义各目标的权重
- */
+import { CargoItem, ContainerType, PackingResult } from '../types';
 
-import { Cargo, Container, ContainerSpec, PackingResult, PlacedCargo } from '../types';
-import { gaPacking, GAOptions } from './ga';
-import { saPacking, SAOptions } from './sa';
-
-/**
- * 多目标优化配置
- */
-export interface MultiObjectiveConfig {
-  weights: {
-    utilization: number;    // 空间利用率权重 (0-1)
-    balance: number;        // 重心平衡权重 (0-1)
-    stacking: number;       // 堆叠稳定性权重 (0-1)
-    loading: number;        // 装卸效率权重 (0-1)
-  };
-  algorithm: 'GA' | 'SA' | 'FFD';
-  gaOptions?: GAOptions;
-  saOptions?: SAOptions;
+export interface MultiObjectiveWeights {
+  spaceUtilization: number;
+  centerOfGravity: number;
+  stackingStability: number;
+  loadingCost: number;
+  unloadingOrder: number;
 }
 
-/**
- * 默认配置
- */
-export const DEFAULT_MULTI_OBJECTIVE_CONFIG: MultiObjectiveConfig = {
-  weights: {
-    utilization: 0.4,
-    balance: 0.3,
-    stacking: 0.2,
-    loading: 0.1
-  },
-  algorithm: 'GA'
+export interface ObjectiveScore {
+  spaceUtilization: number;
+  centerOfGravityScore: number;
+  stackingStability: number;
+  loadingCost: number;
+  unloadingOrder: number;
+  weightedScore: number;
+}
+
+export interface MultiObjectiveResult {
+  result: PackingResult;
+  scores: ObjectiveScore;
+  paretoRank: number;
+}
+
+export const DEFAULT_WEIGHTS: MultiObjectiveWeights = {
+  spaceUtilization: 0.35,
+  centerOfGravity: 0.25,
+  stackingStability: 0.15,
+  loadingCost: 0.15,
+  unloadingOrder: 0.10,
 };
 
-/**
- * 归一化函数
- */
-const normalize = (value: number, min: number, max: number): number => {
-  if (max - min === 0) return 0;
-  return Math.max(0, Math.min(1, (value - min) / (max - min)));
-};
-
-/**
- * 计算多目标评分
- */
-export const calculateMultiObjectiveScore = (
-  containers: Container[],
-  config: MultiObjectiveConfig
+export const calculateCenterOfGravityScore = (
+  cargoList: { position: { x: number; y: number; z: number }; weight: number }[],
+  container: ContainerType
 ): number => {
-  let score = 0;
-  const { utilization, balance, stacking, loading } = config.weights;
+  if (cargoList.length === 0) return 0;
+
+  const totalWeight = cargoList.reduce((sum, c) => sum + c.weight, 0);
+  if (totalWeight === 0) return 0;
+
+  const cx = cargoList.reduce((sum, c) => sum + c.position.x * c.weight, 0) / totalWeight;
+  const cy = cargoList.reduce((sum, c) => sum + c.position.y * c.weight, 0) / totalWeight;
+  const cz = cargoList.reduce((sum, c) => sum + c.position.z * c.weight, 0) / totalWeight;
+
+  const idealX = container.length / 2;
+  const idealY = container.height / 3;
+  const idealZ = container.width / 2;
+
+  const dx = Math.abs(cx - idealX) / (container.length / 2);
+  const dy = Math.abs(cy - idealY) / (container.height / 2);
+  const dz = Math.abs(cz - idealZ) / (container.width / 2);
+
+  const distance = Math.sqrt(dx * dx + dy * dy + dz * dz) / Math.sqrt(3);
   
-  // 计算空间利用率得分
-  const totalUtilization = containers.reduce((sum, c) => sum + c.stats.volumeUtilization, 0) / containers.length;
-  const utilizationScore = normalize(totalUtilization, 0, 100);
-  score += utilization * utilizationScore;
-  
-  // 计算重心平衡得分
-  let totalCogOffset = 0;
-  let maxOffset = 1000;
-  for (const container of containers) {
-    const cog = calculateCenterOfGravity(container.placedCargos, container.spec);
-    maxOffset = Math.max(
-      maxOffset,
-      Math.max(
-        container.spec.innerDimensions.length,
-        container.spec.innerDimensions.width
-      ) * 0.3
+  return Math.max(0, 1 - distance);
+};
+
+export const calculateStackingStability = (
+  cargoList: { position: { x: number; y: number; z: number }; weight: number; length: number; width: number }[],
+  container: ContainerType
+): number => {
+  if (cargoList.length === 0) return 0;
+
+  let stabilityScore = 0;
+  let validStacks = 0;
+
+  const sortedByY = [...cargoList].sort((a, b) => b.position.y - a.position.y);
+
+  for (let i = 0; i < sortedByY.length; i++) {
+    const cargo = sortedByY[i];
+    const baseCargoes = sortedByY.filter(c => 
+      c.position.y < cargo.position.y - cargo.height * 0.5 &&
+      Math.abs(c.position.x - cargo.position.x) < (c.length + cargo.length) / 2 &&
+      Math.abs(c.position.z - cargo.position.z) < (c.width + cargo.width) / 2
     );
-    totalCogOffset += Math.sqrt(cog.x * cog.x + cog.y * cog.y);
-  }
-  const avgCogOffset = containers.length > 0 ? totalCogOffset / containers.length : 0;
-  const balanceScore = 1 - normalize(avgCogOffset, 0, maxOffset);
-  score += balance * balanceScore;
-  
-  // 计算堆叠稳定性得分
-  let totalStackingScore = 0;
-  for (const container of containers) {
-    const cargoCount = container.placedCargos.length;
-    if (cargoCount === 0) continue;
-    
-    let stackingPenalty = 0;
-    for (const cargo of container.placedCargos) {
-      // 检查堆叠层数
-      if (cargo.maxStack > 0) {
-        const stackLevel = getStackLevel(cargo, container.placedCargos);
-        if (stackLevel > cargo.maxStack) {
-          stackingPenalty += (stackLevel - cargo.maxStack) * 0.2;
-        }
-      }
-      
-      // 检查易碎品
-      if (cargo.fragile && cargo.position.z > 100) {
-        stackingPenalty += 0.5;
-      }
+
+    if (baseCargoes.length > 0) {
+      const baseWeight = baseCargoes.reduce((sum, c) => sum + c.weight, 0);
+      const stability = Math.min(1, baseWeight / (cargo.weight * 2));
+      stabilityScore += stability;
+      validStacks++;
+    } else if (cargo.position.y < container.height * 0.1) {
+      stabilityScore += 1;
+      validStacks++;
     }
-    
-    const containerStackScore = Math.max(0, 1 - stackingPenalty / cargoCount);
-    totalStackingScore += containerStackScore;
   }
-  const stackingScore = containers.length > 0 ? totalStackingScore / containers.length : 0;
-  score += stacking * stackingScore;
-  
-  // 计算装卸效率得分（简化版：优先底层放置）
-  let totalLoadingScore = 0;
-  for (const container of containers) {
-    const cargoCount = container.placedCargos.length;
-    if (cargoCount === 0) continue;
-    
-    let loadingPenalty = 0;
-    for (const cargo of container.placedCargos) {
-      // 高层货物的装卸难度
-      const heightRatio = cargo.position.z / container.spec.innerDimensions.height;
-      loadingPenalty += heightRatio * 0.3;
-    }
-    
-    const containerLoadingScore = Math.max(0, 1 - loadingPenalty / cargoCount);
-    totalLoadingScore += containerLoadingScore;
-  }
-  const loadingScore = containers.length > 0 ? totalLoadingScore / containers.length : 0;
-  score += loading * loadingScore;
-  
-  return score;
+
+  return validStacks > 0 ? stabilityScore / validStacks : 0;
 };
 
-/**
- * 计算重心位置
- */
-const calculateCenterOfGravity = (
-  placedCargos: PlacedCargo[],
-  containerSpec: ContainerSpec
-): { x: number; y: number; z: number } => {
-  if (placedCargos.length === 0) {
-    return { x: 0, y: 0, z: 0 };
+export const calculateLoadingCost = (
+  cargoList: { position: { x: number; y: number; z: number }; weight: number }[],
+  container: ContainerType
+): number => {
+  if (cargoList.length === 0) return 0;
+
+  const avgDistance = cargoList.reduce((sum, c) => {
+    const distance = Math.sqrt(
+      Math.pow(c.position.x, 2) + 
+      Math.pow(c.position.y, 2) + 
+      Math.pow(c.position.z, 2)
+    );
+    return sum + distance;
+  }, 0) / cargoList.length;
+
+  const maxDistance = Math.sqrt(
+    Math.pow(container.length, 2) + 
+    Math.pow(container.height, 2) + 
+    Math.pow(container.width, 2)
+  );
+
+  return 1 - (avgDistance / maxDistance);
+};
+
+export const calculateUnloadingOrderScore = (
+  cargoList: { position: { x: number; y: number; z: number }; id: string }[],
+  priorityOrders: string[] = []
+): number => {
+  if (cargoList.length === 0) return 0;
+
+  const prioritySet = new Set(priorityOrders);
+  let score = 0;
+  let matched = 0;
+
+  for (const cargo of cargoList) {
+    if (prioritySet.has(cargo.id)) {
+      const distanceFromDoor = cargo.position.x;
+      const isNearDoor = distanceFromDoor < 100;
+      score += isNearDoor ? 1 : 0.5;
+      matched++;
+    }
   }
 
-  const containerCenter = {
-    x: containerSpec.innerDimensions.length / 2,
-    y: containerSpec.innerDimensions.width / 2,
-    z: containerSpec.innerDimensions.height / 2
-  };
+  return matched > 0 ? score / matched : 0;
+};
 
-  let totalWeight = 0;
-  let weightedX = 0;
-  let weightedY = 0;
-  let weightedZ = 0;
+export const calculateMultiObjectiveScore = (
+  cargoList: { position: { x: number; y: number; z: number }; weight: number; length: number; width: number; id: string }[],
+  container: ContainerType,
+  weights: MultiObjectiveWeights = DEFAULT_WEIGHTS,
+  spaceUtilization: number,
+  priorityOrders: string[] = []
+): ObjectiveScore => {
+  const centerOfGravityScore = calculateCenterOfGravityScore(
+    cargoList,
+    container
+  );
 
-  for (const cargo of placedCargos) {
-    const weight = cargo.weight * cargo.placedQuantity;
-    totalWeight += weight;
+  const stackingStability = calculateStackingStability(
+    cargoList,
+    container
+  );
 
-    weightedX += (cargo.position.x + cargo.dimensions.length / 2) * weight;
-    weightedY += (cargo.position.y + cargo.dimensions.width / 2) * weight;
-    weightedZ += (cargo.position.z + cargo.dimensions.height / 2) * weight;
-  }
+  const loadingCost = calculateLoadingCost(
+    cargoList,
+    container
+  );
+
+  const unloadingOrder = calculateUnloadingOrderScore(
+    cargoList,
+    priorityOrders
+  );
+
+  const weightedScore =
+    spaceUtilization * weights.spaceUtilization +
+    centerOfGravityScore * weights.centerOfGravity +
+    stackingStability * weights.stackingStability +
+    loadingCost * weights.loadingCost +
+    unloadingOrder * weights.unloadingOrder;
 
   return {
-    x: (weightedX / totalWeight) - containerCenter.x,
-    y: (weightedY / totalWeight) - containerCenter.y,
-    z: (weightedZ / totalWeight) - containerCenter.z
+    spaceUtilization,
+    centerOfGravityScore,
+    stackingStability,
+    loadingCost,
+    unloadingOrder,
+    weightedScore,
   };
 };
 
-/**
- * 获取货物堆叠层数
- */
-const getStackLevel = (cargo: PlacedCargo, allCargos: PlacedCargo[]): number => {
-  let level = 1;
-  const tolerance = 10;
-  
-  let currentZ = cargo.position.z - tolerance;
-  while (currentZ > 0) {
-    const hasSupport = allCargos.some(other => {
-      if (other.id === cargo.id) return false;
-      
-      const overlapX = !(
-        cargo.position.x + cargo.dimensions.length <= other.position.x ||
-        other.position.x + other.dimensions.length <= cargo.position.x
-      );
-      
-      const overlapY = !(
-        cargo.position.y + cargo.dimensions.width <= other.position.y ||
-        other.position.y + other.dimensions.width <= cargo.position.y
-      );
-      
-      const overlapZ = Math.abs((other.position.z + other.dimensions.height) - cargo.position.z) < tolerance;
-      
-      return overlapX && overlapY && overlapZ;
-    });
-    
-    if (hasSupport) {
-      level++;
+export const findParetoFrontier = (
+  results: PackingResult[],
+  container: ContainerType,
+  weights: MultiObjectiveWeights = DEFAULT_WEIGHTS
+): MultiObjectiveResult[] => {
+  const scoredResults: MultiObjectiveResult[] = results.map((result, index) => {
+    const totalCargoList = result.containers.flatMap(c => 
+      c.cargoList.map(cargo => ({
+        ...cargo,
+        position: cargo.position || { x: 0, y: 0, z: 0 },
+      }))
+    );
+
+    const avgUtilization = result.containers.reduce(
+      (sum, c) => sum + c.volumeUtilization,
+      0
+    ) / result.containers.length;
+
+    const scores = calculateMultiObjectiveScore(
+      totalCargoList,
+      container,
+      weights,
+      avgUtilization
+    );
+
+    return {
+      result,
+      scores,
+      paretoRank: 0,
+    };
+  });
+
+  scoredResults.sort((a, b) => b.scores.weightedScore - a.scores.weightedScore);
+
+  let rank = 1;
+  for (let i = 0; i < scoredResults.length; i++) {
+    if (i === 0 || scoredResults[i].scores.weightedScore < scoredResults[i - 1].scores.weightedScore - 0.01) {
+      rank++;
     }
-    currentZ -= 500;
+    scoredResults[i].paretoRank = rank;
   }
-  
-  return level;
+
+  return scoredResults;
 };
 
-/**
- * 多目标优化装箱
- */
-export const multiObjectivePacking = (
-  cargos: Cargo[],
-  containerSpecs: ContainerSpec[],
-  config: MultiObjectiveConfig = DEFAULT_MULTI_OBJECTIVE_CONFIG
-): PackingResult => {
-  const { algorithm, gaOptions, saOptions } = config;
-  
-  let result: PackingResult;
-  
-  switch (algorithm) {
-    case 'GA':
-      result = gaPacking(cargos, containerSpecs, gaOptions);
-      break;
-    case 'SA':
-      result = saPacking(cargos, containerSpecs, saOptions);
-      break;
-    default:
-      // 默认使用GA算法
-      result = gaPacking(cargos, containerSpecs, gaOptions);
-  }
-  
-  // 计算多目标评分
-  calculateMultiObjectiveScore(result.containers, config);
-  
+export const normalizeWeights = (weights: MultiObjectiveWeights): MultiObjectiveWeights => {
+  const total = 
+    weights.spaceUtilization +
+    weights.centerOfGravity +
+    weights.stackingStability +
+    weights.loadingCost +
+    weights.unloadingOrder;
+
+  if (total === 0) return DEFAULT_WEIGHTS;
+
   return {
-    ...result,
-    algorithm: `${result.algorithm} (Multi-Objective)`
+    spaceUtilization: weights.spaceUtilization / total,
+    centerOfGravity: weights.centerOfGravity / total,
+    stackingStability: weights.stackingStability / total,
+    loadingCost: weights.loadingCost / total,
+    unloadingOrder: weights.unloadingOrder / total,
   };
-};
-
-/**
- * 算法对比评估
- */
-export interface AlgorithmComparison {
-  algorithm: string;
-  utilization: number;
-  balance: number;
-  stacking: number;
-  loading: number;
-  totalScore: number;
-  duration: number;
-}
-
-export const compareAlgorithms = (
-  cargos: Cargo[],
-  containerSpecs: ContainerSpec[],
-  config: MultiObjectiveConfig
-): AlgorithmComparison[] => {
-  const results: AlgorithmComparison[] = [];
-  
-  // 测试GA算法
-  const gaResult = gaPacking(cargos, containerSpecs, config.gaOptions);
-  const gaScore = calculateMultiObjectiveScore(gaResult.containers, config);
-  
-  results.push({
-    algorithm: 'GA',
-    utilization: gaResult.totalStats.volumeUtilization,
-    balance: 100 - (calculateCenterOfGravity(gaResult.containers[0]?.placedCargos || [], containerSpecs[0])).x,
-    stacking: 100,
-    loading: 100,
-    totalScore: gaScore,
-    duration: gaResult.duration
-  });
-  
-  // 测试SA算法
-  const saResult = saPacking(cargos, containerSpecs, config.saOptions);
-  const saScore = calculateMultiObjectiveScore(saResult.containers, config);
-  
-  results.push({
-    algorithm: 'SA',
-    utilization: saResult.totalStats.volumeUtilization,
-    balance: 100,
-    stacking: 100,
-    loading: 100,
-    totalScore: saScore,
-    duration: saResult.duration
-  });
-  
-  return results;
-};
-
-export default {
-  multiObjectivePacking,
-  calculateMultiObjectiveScore,
-  compareAlgorithms,
-  DEFAULT_MULTI_OBJECTIVE_CONFIG
 };
